@@ -430,7 +430,7 @@ Ordered by implementation impact:
 |-----|--------|--------|-------|
 | **True adversarial debate** | Medium | High | Run Bull/Bear sequentially so Bear sees Bull's output and rebuts it directly |
 | **LLM-based Portfolio Manager** | Low | High | Replace template formatting with an actual LLM synthesis call |
-| **Risk analysis phase** | High | High | Add 3 risk analyst subagents (Aggressive/Conservative/Neutral) between Phase 2 and the PM |
+| ~~Risk analysis phase~~ | Done | Done | Implemented: 3 risk analyst subagents (Aggressive/Conservative/Neutral) run sequentially between Bull/Bear and the PM |
 | **Persistent memory** | High | High | Store decisions in a markdown log; inject past context into PM prompt on each run |
 | **Research Manager agent** | Low | Medium | Add a synthesis step between debate and Trader that produces a structured investment plan |
 | **Outcome reflection** | High | Medium | Fetch price returns after 5 days; generate reflection; update log |

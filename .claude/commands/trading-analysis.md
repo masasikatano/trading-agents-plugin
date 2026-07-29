@@ -1,6 +1,6 @@
 ---
 name: trading-analysis
-description: Multi-agent trading analysis for a stock ticker. Runs technical, news, fundamentals, and macro analysts in parallel, then an adversarial bull/bear debate, then Research Manager, Trader, and Portfolio Manager to produce a final BUY/SELL/HOLD decision with entry, stop, and sizing.
+description: Multi-agent trading analysis for a stock ticker. Runs technical, news, fundamentals, and macro analysts in parallel, then an adversarial bull/bear debate, then a 3-way risk debate (Aggressive/Conservative/Neutral), then Research Manager, Trader, and Portfolio Manager to produce a final BUY/SELL/HOLD decision with entry, stop, and sizing.
 ---
 
 Extract the ticker symbol from $ARGUMENTS (e.g. "NVDA"). If no ticker is provided, ask the user for one before proceeding.
@@ -89,9 +89,14 @@ Wait for all 4 subagents to complete. Collect their full reports.
 
 ---
 
-## Phase 2 — Adversarial Bull/Bear Debate
+## Phase 2 — Adversarial Bull/Bear Debate and 3-Way Risk Discussion
 
-Run these 2 subagents SEQUENTIALLY: Bull first, then Bear receives Bull's full argument.
+Run these subagents SEQUENTIALLY:
+1. Bull Analyst
+2. Bear Analyst (receives Bull's full argument)
+3. Aggressive Risk Analyst
+4. Conservative Risk Analyst (receives Aggressive's full argument)
+5. Neutral Risk Analyst (receives Aggressive + Conservative arguments)
 
 **Subagent 5 — Bull Analyst:**
 ```
@@ -156,7 +161,7 @@ FUNDAMENTALS REPORT:
 [insert full fundamentals report from Phase 1]
 
 BULL ANALYST'S ARGUMENT (respond to this directly):
-[insert full bull report from Subagent 4]
+[insert full bull report from Subagent 5]
 
 Write 150-200 words. Rebut the bull's specific arguments using data from the reports.
 
@@ -165,19 +170,16 @@ End with exactly: BEAR CONVICTION: HIGH, MEDIUM, or LOW
 
 Wait for Subagent 6 to complete. Collect the full bear report.
 
-**Subagent 7 — Risk Analyst:**
+**Subagent 7a — Aggressive Risk Analyst:**
 ```
-You are a conservative Risk Analyst. Your job is NOT to repeat what the Bull or Bear
-said — it is to stress-test the trade from a risk management perspective and surface
-factors that neither side adequately addressed.
+You are the Aggressive Risk Analyst. Your job is to champion the high-reward,
+high-risk side of the trade and push back against overcaution.
 
-Focus on:
-- Downside scenarios: what would have to go wrong for a meaningful loss to occur?
-- Balance sheet risk: leverage (D/E ratio), liquidity (current ratio), debt obligations
-- Volatility and beta: what does high beta imply for position sizing and drawdown risk?
-- Concentration and crowding risk: is the analyst consensus too one-sided?
-- Macro tail risks: which macro signals from the macro report pose the biggest threat?
-- Any risk the Bull and Bear both glossed over
+Key points to focus on:
+- Upside potential: where could the bull thesis materially underestimate returns?
+- Growth optionality: product cycles, market expansion, or leverage that the Bear Analyst may be undervaluing.
+- Risk/reward: argue why current volatility or valuation is acceptable given the payoff profile.
+- Engagement: directly address the Bear Analyst's concerns, but from a perspective that treats bold risk-taking as a feature, not a bug.
 
 Resources available:
 
@@ -193,21 +195,103 @@ BULL ARGUMENT:
 BEAR ARGUMENT:
 [insert full bear report]
 
-Write 150-200 words. Be specific — cite numbers (beta, D/E, short ratio, yield levels).
-Do not simply side with the bear. Raise risks that neither analyst addressed.
+Write 150-200 words. Be specific — cite numbers (forward P/E, earnings growth, revenue growth, price target upside).
 
-End with exactly: RISK LEVEL: HIGH, MEDIUM, or LOW
+Do not simply repeat the Bull Analyst. Add a risk-tolerant, opportunity-focused frame that the Bull did not emphasize.
+
+End with exactly: AGGRESSIVE RISK STANCE: BULLISH, NEUTRAL, or BEARISH
 ```
 
-Wait for Subagent 7 to complete. Collect the full risk report.
+Wait for Subagent 7a to complete. Collect the full aggressive risk report.
+
+**Subagent 7b — Conservative Risk Analyst:**
+```
+You are the Conservative Risk Analyst. Your job is to protect capital, minimize
+volatility, and surface downside scenarios that neither the Bull nor the
+Aggressive Risk Analyst adequately addressed.
+
+Key points to focus on:
+- Downside scenarios: what would have to go wrong for a meaningful loss to occur?
+- Balance sheet risk: leverage (D/E ratio), liquidity (current ratio), debt obligations.
+- Volatility and beta: what does high beta imply for position sizing and drawdown risk?
+- Concentration and crowding risk: is the analyst consensus too one-sided?
+- Macro tail risks: which macro signals from the macro report pose the biggest threat?
+- Engagement: directly rebut the Aggressive Risk Analyst's claims. Explain where their optimism may ignore real threats or overestimate the payoff.
+
+Resources available:
+
+FUNDAMENTALS REPORT:
+[insert full fundamentals report from Phase 1]
+
+MACRO REPORT:
+[insert full macro report from Phase 1]
+
+BULL ARGUMENT:
+[insert full bull report]
+
+BEAR ARGUMENT:
+[insert full bear report]
+
+AGGRESSIVE RISK ANALYST'S ARGUMENT (respond to this directly):
+[insert full aggressive risk report from Subagent 7a]
+
+Write 150-200 words. Be specific — cite numbers (beta, D/E, short ratio, yield levels).
+
+Do not simply side with the Bear. Raise risks that neither the Bull nor the Aggressive Risk Analyst addressed.
+
+End with exactly: CONSERVATIVE RISK STANCE: BULLISH, NEUTRAL, or BEARISH
+```
+
+Wait for Subagent 7b to complete. Collect the full conservative risk report.
+
+**Subagent 7c — Neutral Risk Analyst:**
+```
+You are the Neutral Risk Analyst. Your job is to provide a balanced perspective,
+weighing both potential benefits and risks, and to challenge both the Aggressive
+and Conservative Risk Analysts.
+
+Key points to focus on:
+- Balance: identify where the Aggressive view is too optimistic and where the Conservative view is too pessimistic.
+- Sustainable sizing: recommend a position size or entry approach that reflects a middle path.
+- Data-driven moderation: use fundamentals and macro data to support a neither-all-in-nor-out stance.
+- Engagement: directly address both the Aggressive and Conservative arguments and explain why a moderate, risk-aware strategy is best.
+
+Resources available:
+
+FUNDAMENTALS REPORT:
+[insert full fundamentals report from Phase 1]
+
+MACRO REPORT:
+[insert full macro report from Phase 1]
+
+BULL ARGUMENT:
+[insert full bull report]
+
+BEAR ARGUMENT:
+[insert full bear report]
+
+AGGRESSIVE RISK ANALYST'S ARGUMENT:
+[insert full aggressive risk report from Subagent 7a]
+
+CONSERVATIVE RISK ANALYST'S ARGUMENT (respond to this directly):
+[insert full conservative risk report from Subagent 7b]
+
+Write 150-200 words. Be specific — cite numbers where they support your moderation.
+
+Do not simply split the difference. Argue for the most robust, sustainable position given the evidence.
+
+End with exactly: NEUTRAL RISK STANCE: SLIGHTLY BULLISH, NEUTRAL, or SLIGHTLY BEARISH
+```
+
+Wait for Subagent 7c to complete. Collect the full neutral risk report.
 
 ---
 
 ## Phase 3 — Research Manager
 
 You are now the Research Manager and debate facilitator. Your role is to critically
-evaluate the bull/bear debate and deliver a clear, actionable investment plan for
-the trader.
+evaluate the bull/bear debate and the 3-way risk discussion, then deliver a clear,
+actionable investment plan for the trader.
 
 **Rating Scale** (use exactly one):
 - **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position
@@ -218,6 +302,8 @@ the trader.
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one;
 reserve Hold for situations where the evidence on both sides is genuinely balanced.
+Consider all three risk perspectives; do not let the Aggressive or Conservative view
+override the Neutral view without evidence.
 
 **Debate to evaluate:**
 
@@ -227,8 +313,14 @@ BULL ANALYST:
 BEAR ANALYST:
 [insert full bear report]
 
-RISK ANALYST:
-[insert full risk report from Subagent 7]
+AGGRESSIVE RISK ANALYST:
+[insert full aggressive risk report from Subagent 7a]
+
+CONSERVATIVE RISK ANALYST:
+[insert full conservative risk report from Subagent 7b]
+
+NEUTRAL RISK ANALYST:
+[insert full neutral risk report from Subagent 7c]
 
 Output your investment plan in this format:
 ```
@@ -281,8 +373,14 @@ BULL ARGUMENT:
 BEAR ARGUMENT:
 [insert bear report]
 
-RISK ANALYST:
-[insert full risk report]
+AGGRESSIVE RISK ANALYST:
+[insert full aggressive risk report]
+
+CONSERVATIVE RISK ANALYST:
+[insert full conservative risk report]
+
+NEUTRAL RISK ANALYST:
+[insert full neutral risk report]
 
 Output the final decision in this EXACT format:
 ```
@@ -296,7 +394,8 @@ SIZE: [sizing from Trader]
 
 BULL: [one sentence — the single strongest bull argument]
 BEAR: [one sentence — the single strongest bear argument]
-VERDICT: [2-3 sentences — why the bull or bear case won and what specifically to do]
+RISK: [one sentence — the single strongest conclusion from the 3-way risk debate]
+VERDICT: [2-3 sentences — why the bull or bear case won, how the three risk views converge, and what specifically to do]
 ```
 
 Display the full PM decision to the user.

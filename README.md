@@ -29,13 +29,13 @@ uv sync   # or: pip install yfinance pandas
 
 ```
 Phase 1 (parallel):    Technical + News + Fundamentals + Macro analyst
-Phase 2 (sequential):  Bull → Bear rebuts Bull directly → Risk Analyst stress-tests both
+Phase 2 (sequential):  Bull → Bear rebuts Bull directly → Aggressive / Conservative / Neutral risk debate
 Phase 3:               Research Manager synthesizes all three voices
 Phase 4:               Trader sets entry / stop / size anchored to technicals
 Phase 5:               Portfolio Manager → final BUY / SELL / HOLD
 ```
 
-7 subagents total. Each phase uses Claude Code's native `Agent` tool. Data is fetched for free via [yfinance](https://github.com/ranaroussi/yfinance) — no OpenAI, Anthropic, or any other LLM API key required.
+9 subagents total. Each phase uses Claude Code's native `Agent` tool. Data is fetched for free via [yfinance](https://github.com/ranaroussi/yfinance) — no OpenAI, Anthropic, or any other LLM API key required.
 
 ## What each analyst covers
 
@@ -47,7 +47,9 @@ Phase 5:               Portfolio Manager → final BUY / SELL / HOLD
 | **Macro** | S&P 500, 10Y Treasury, gold, oil news — geopolitical/monetary policy signals |
 | **Bull** | Strongest buy case using all Phase 1 data |
 | **Bear** | Directly rebuts Bull's specific claims with data |
-| **Risk** | Stress-tests both sides — crowding risk, beta drawdown scenarios, tail risks neither Bull nor Bear addressed |
+| **Aggressive Risk** | Champions the high-reward side — pushes back against overcaution and highlights upside optionality |
+| **Conservative Risk** | Protects capital — surfaces balance-sheet, volatility, and macro tail risks that Bull/Aggressive gloss over |
+| **Neutral Risk** | Balances both extremes — argues for a moderate, sustainable sizing/entry approach given the evidence |
 
 ## Sample output
 
@@ -64,9 +66,13 @@ BULL: PEG 0.18, FCF $58.1B, net cash $51B, and 57 analysts pricing in 35% upside
       NVDA's AI dominance is structurally mispriced.
 BEAR: Beta 2.33 in RISK-OFF macro with crowded longs means a guidance miss could
       trigger a 20%+ unwind against a 30.7x P/B backdrop.
-VERDICT: Bull wins on fundamentals — no operational weakness identified. Risk Analyst
-         flagged crowding and ~23% beta drawdown scenario, reducing sizing to 2–3%
-         initial with staged second entry near SMA50.
+RISK: The three risk views converge on "respect the volatility" — Aggressive sees the
+      risk/reward as favorable, Conservative flags beta/crowding, and Neutral lands on
+      staged entry rather than full-sized commitment.
+VERDICT: Bull wins on fundamentals — no operational weakness identified. The 3-way
+         risk debate kept sizing disciplined: Conservative and Neutral views overrode
+         Aggressive sizing, setting a 2–3% initial position with a second tranche near
+         SMA50.
 ```
 
 ## Requirements
