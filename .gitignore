@@ -3,3 +3,10 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Build artifacts
+trading_agents_plugin.egg-info/
+
+# Plugin metadata directory (if managed externally)
+.claude-plugin/
+

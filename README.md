@@ -88,11 +88,11 @@ If you prefer not to use the plugin system:
 git clone https://github.com/lucemia/trading-agents-plugin
 cd trading-agents-plugin
 uv sync
-mkdir -p ~/.claude/commands
-cp .claude/commands/trading-analysis.md ~/.claude/commands/
+mkdir -p ~/.claude/skills/trading-analysis
+cp .claude/skills/trading-analysis/SKILL.md ~/.claude/skills/trading-analysis/
 ```
 
-Then update the script path in `~/.claude/commands/trading-analysis.md` to match your local clone path.
+Then update the script path in `~/.claude/skills/trading-analysis/SKILL.md` to match your local clone path.
 
 ## Inspiration
 

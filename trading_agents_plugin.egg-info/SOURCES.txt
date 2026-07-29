@@ -1,9 +1,0 @@
-LICENSE
-README.md
-pyproject.toml
-scripts/fetch_market_data.py
-trading_agents_plugin.egg-info/PKG-INFO
-trading_agents_plugin.egg-info/SOURCES.txt
-trading_agents_plugin.egg-info/dependency_links.txt
-trading_agents_plugin.egg-info/requires.txt
-trading_agents_plugin.egg-info/top_level.txt
