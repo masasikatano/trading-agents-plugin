@@ -17,7 +17,7 @@ You are a technical analyst for $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project /Users/davidchen/repo/TradingAgents python /Users/davidchen/repo/TradingAgents/scripts/fetch_market_data.py --ticker $TICKER --type technical --date $TODAY
+uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_market_data.py --ticker $TICKER --type technical --date $TODAY
 ```
 
 Write a technical analysis report (150-200 words) covering:
@@ -35,7 +35,7 @@ You are a news and sentiment analyst for $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project /Users/davidchen/repo/TradingAgents python /Users/davidchen/repo/TradingAgents/scripts/fetch_market_data.py --ticker $TICKER --type news --date $TODAY
+uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_market_data.py --ticker $TICKER --type news --date $TODAY
 ```
 
 Write a sentiment report (150-200 words) covering:
@@ -53,7 +53,7 @@ You are a fundamentals analyst for $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project /Users/davidchen/repo/claude-trading-agents python /Users/davidchen/repo/claude-trading-agents/scripts/fetch_market_data.py --ticker $TICKER --type fundamentals --date $TODAY
+uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_market_data.py --ticker $TICKER --type fundamentals --date $TODAY
 ```
 
 Write a fundamentals report (200-250 words) covering:
@@ -74,7 +74,7 @@ You are a macro analyst providing global market context as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project /Users/davidchen/repo/claude-trading-agents python /Users/davidchen/repo/claude-trading-agents/scripts/fetch_market_data.py --ticker MACRO --type macro --date $TODAY
+uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_market_data.py --ticker MACRO --type macro --date $TODAY
 ```
 
 Write a macro context report (100-150 words) covering:
