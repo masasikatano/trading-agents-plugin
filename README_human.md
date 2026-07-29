@@ -182,8 +182,7 @@ trading-agents-plugin/
 │   └── SKILL.md              # 手動インストール用 skill 定義
 ├── skills/trading-analysis/
 │   └── SKILL.md              # プラグイン配布用 skill 定義
-├── reports/                  # 実行されたレポートを置くディレクトリ
-└── report/                   # 調査用レポートのサンプル
+└── reports/                  # 実行レポート・調査用レポートのサンプル
     └── 20260729_NVDA_Grok.md
 ```
 
