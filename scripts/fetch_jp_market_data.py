@@ -17,6 +17,7 @@ import io
 import math
 import os
 import re
+import sys
 from datetime import date, datetime, timedelta
 
 import pandas as pd
@@ -515,6 +516,90 @@ def fetch_macro(as_of: date) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Human-readable summary for --verbose
+# ---------------------------------------------------------------------------
+
+def _fmt(val) -> str:
+    """Format a scalar for human-readable output."""
+    if val is None:
+        return "N/A"
+    try:
+        f = float(val)
+        if math.isnan(f) or math.isinf(f):
+            return "N/A"
+        return f"{f:,.2f}"
+    except (TypeError, ValueError):
+        return str(val)
+
+
+def _print_macro_summary(result: dict):
+    print(f"[macro] 基準日: {result.get('as_of')}", file=sys.stderr)
+    indices = result.get("indices", {})
+    print(f"  日経平均: {_fmt(indices.get('n225', {}).get('latest'))}", file=sys.stderr)
+    print(f"  ドル円  : {_fmt(indices.get('usdjpy', {}).get('latest'))} 円", file=sys.stderr)
+    print(f"  米10年債: {_fmt(indices.get('us10y', {}).get('latest'))} %", file=sys.stderr)
+    print(f"  原油    : {_fmt(indices.get('crude_oil', {}).get('latest'))} USD", file=sys.stderr)
+    print(f"  BOJ 政策金利: {_fmt(result.get('boj_policy_rate', {}).get('value'))} %", file=sys.stderr)
+    print(f"  国債10年: {_fmt(result.get('jgb_10y', {}).get('value'))} %", file=sys.stderr)
+
+
+def _print_technical_summary(result: dict):
+    print(f"[technical] ティッカー: {result.get('ticker')}  基準日: {result.get('as_of')}", file=sys.stderr)
+    if "error" in result:
+        print(f"  エラー  : {result['error']}", file=sys.stderr)
+        return
+    price = result.get("price", {})
+    print(f"  終値    : {_fmt(price.get('current'))} 円", file=sys.stderr)
+    print(f"  前日比  : {_fmt(price.get('change_pct'))} %", file=sys.stderr)
+    print(f"  52週高  : {_fmt(price.get('52w_high'))} 円", file=sys.stderr)
+    print(f"  52週安  : {_fmt(price.get('52w_low'))} 円", file=sys.stderr)
+    ind = result.get("indicators", {})
+    print(f"  RSI(14) : {_fmt(ind.get('rsi14'))}", file=sys.stderr)
+    print(f"  MACD    : {_fmt(ind.get('macd'))}", file=sys.stderr)
+    src = result.get("data_sources", {})
+    print(f"  データ源: J-Quants {src.get('jquants_dates', 0)} 日 / yfinance {src.get('yfinance_dates', 0)} 日", file=sys.stderr)
+
+
+def _print_fundamentals_summary(result: dict):
+    print(f"[fundamentals] ティッカー: {result.get('ticker')}  基準日: {result.get('as_of')}", file=sys.stderr)
+    summary = result.get("jquants_summary", [])
+    if summary:
+        latest = summary[0]
+        print(f"  最新決算: {latest.get('CurFYSt', '')} {latest.get('CurPerType', '')}", file=sys.stderr)
+        print(f"  売上高  : {_fmt(latest.get('Sales'))} 百万円", file=sys.stderr)
+        print(f"  営業利益: {_fmt(latest.get('OP'))} 百万円", file=sys.stderr)
+        print(f"  純利益  : {_fmt(latest.get('NP'))} 百万円", file=sys.stderr)
+        print(f"  EPS     : {_fmt(latest.get('EPS'))} 円", file=sys.stderr)
+    else:
+        print("  財務サマリー: なし", file=sys.stderr)
+    yf = result.get("yfinance", {})
+    print(f"  P/E     : {_fmt(yf.get('trailingPE'))}", file=sys.stderr)
+    print(f"  P/B     : {_fmt(yf.get('priceToBook'))}", file=sys.stderr)
+    print(f"  配当利回: {_fmt(yf.get('dividendYield'))} %", file=sys.stderr)
+
+
+def _print_news_summary(result: dict):
+    print(f"[news] ティッカー: {result.get('ticker')}  基準日: {result.get('as_of')}", file=sys.stderr)
+    items = result.get("items", [])
+    print(f"  件数    : {result.get('news_count', len(items))} 件", file=sys.stderr)
+    for i, item in enumerate(items[:3], start=1):
+        title = item.get("title", "")[:50]
+        print(f"  {i}. {title}...", file=sys.stderr)
+
+
+def _print_summary(result: dict, fetch_type: str):
+    printers = {
+        "macro": _print_macro_summary,
+        "technical": _print_technical_summary,
+        "fundamentals": _print_fundamentals_summary,
+        "news": _print_news_summary,
+    }
+    printer = printers.get(fetch_type)
+    if printer:
+        printer(result)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -523,6 +608,7 @@ def main():
     parser.add_argument("--ticker", required=True)
     parser.add_argument("--type", required=True, choices=["technical", "news", "fundamentals", "macro"])
     parser.add_argument("--date", default=date.today().isoformat())
+    parser.add_argument("--verbose", action="store_true", help="Print human-readable summary to stderr")
     args = parser.parse_args()
 
     as_of = date.fromisoformat(args.date)
@@ -537,6 +623,9 @@ def main():
         result = fetchers[args.type](args.ticker, as_of)
     except Exception as e:
         result = {"error": str(e), "ticker": args.ticker, "type": args.type}
+
+    if args.verbose:
+        _print_summary(result, args.type)
 
     print(dump_json(result))
 

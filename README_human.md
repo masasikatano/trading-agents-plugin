@@ -127,6 +127,47 @@ JQUANTS_API_KEY=   # J-Quants API v2 のダッシュボードで発行
 FRED_API_KEY=      # 任意（日本金利データの補完・検証用）
 ```
 
+#### データ取得を目視確認する
+
+`scripts/fetch_jp_market_data.py` には `--verbose` フラグがあり、JSON 出力の前に人間が読みやすいサマリーを stderr に表示します。マクロ指標のドル円や日経平均、テクニカルの終値・RSI などが一目で確認できます。
+
+```bash
+# マクロ指標の確認（ドル円、日経平均、金利など）
+uv run python scripts/fetch_jp_market_data.py --ticker TYO:6702 --type macro --date 2026-07-29 --verbose
+```
+
+出力例:
+
+```text
+[macro] 基準日: 2026-07-29
+  日経平均: 61,867.43
+  ドル円  : 159.61 円
+  米10年債: 4.66 %
+  原油    : 83.99 USD
+  BOJ 政策金利: 0.98 %
+  国債10年: 2.69 %
+```
+
+```bash
+# テクニカル指標の確認
+uv run python scripts/fetch_jp_market_data.py --ticker TYO:6702 --type technical --date 2026-07-29 --verbose
+```
+
+出力例:
+
+```text
+[technical] ティッカー: TYO:6702  基準日: 2026-07-29
+  終値    : 3,844.00 円
+  前日比  : 3.89 %
+  52週高  : 4,636.00 円
+  52週安  : 3,075.00 円
+  RSI(14) : 72.03
+  MACD    : 66.87
+  データ源: J-Quants 291 日 / yfinance 349 日
+```
+
+`--verbose` を付けない場合は従来通り JSON のみが stdout に出力されます。
+
 ### 手動で使う場合
 
 ```bash
