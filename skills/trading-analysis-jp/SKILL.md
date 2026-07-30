@@ -60,7 +60,7 @@ uv run --project /home/masasikatano/project/trading-agents-plugin python /home/m
 
 ファンダメンタル分析レポート（200〜250 語）を作成し、以下を含めてください:
 - バリュエーション: trailing P/E、forward P/E、P/B、セクターノルムとの比較
-- 成長性: 売上高（Sales）と営業利益（OP）、純利益（NP）の成長率トレンド。J-Quants の `jquants_summary` に含まれる `sales_growth`、`operating_profit_growth`、`net_income_growth`、`eps_growth` を重視
+- 成長性: 売上高（Sales）と営業利益（OP）、純利益（NP）の前年同期比（YoY）成長率トレンド。J-Quants の `jquants_summary` に含まれる `sales_growth`、`operating_profit_growth`、`net_income_growth`、`eps_growth` は、同一四半期・同一通期を前年と比較した YoY 成長率
 - 収益性: 粗利率、営業利益率、ROE、フリーキャッシュフロー
 - 貸借対照表: 総資産、純資産、負債、株式数（BPS）
 - リスク指標: beta、配当利回り（dividendYield）

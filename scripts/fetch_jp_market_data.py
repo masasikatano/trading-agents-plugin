@@ -270,19 +270,34 @@ def _sort_key(entry: dict):
 
 
 def _compute_growth_rates(summary: list[dict]) -> list[dict]:
+    """Compute YoY growth rates for each CurPerType (1Q, 2Q, 3Q, FY).
+
+    J-Quants summary values are cumulative within a fiscal year, so comparing
+    adjacent disclosures (e.g. FY vs 3Q) gives meaningless numbers. Instead,
+    compare the same period type across consecutive fiscal years.
+    """
     if not summary:
         return summary
-    sorted_rows = sorted(summary, key=_sort_key)
-    for i in range(1, len(sorted_rows)):
-        prev = sorted_rows[i - 1]
-        cur = sorted_rows[i]
-        for metric, growth_key in GROWTH_METRICS.items():
-            prev_val = _to_float(prev.get(metric))
-            cur_val = _to_float(cur.get(metric))
-            if prev_val is not None and cur_val is not None and prev_val != 0:
-                cur[growth_key] = round((cur_val / prev_val - 1) * 100, 2)
+
+    groups: dict[str, list[dict]] = {}
+    for row in summary:
+        groups.setdefault(row.get("CurPerType", ""), []).append(row)
+
+    for period_type, rows in groups.items():
+        if not period_type:
+            continue
+        rows.sort(key=lambda r: r.get("CurFYSt", ""))
+        for i in range(1, len(rows)):
+            prev = rows[i - 1]
+            cur = rows[i]
+            for metric, growth_key in GROWTH_METRICS.items():
+                prev_val = _to_float(prev.get(metric))
+                cur_val = _to_float(cur.get(metric))
+                if prev_val is not None and cur_val is not None and prev_val != 0:
+                    cur[growth_key] = round((cur_val / prev_val - 1) * 100, 2)
+
     # Return newest-first for the caller.
-    return list(reversed(sorted_rows))
+    return sorted(summary, key=_sort_key, reverse=True)
 
 
 def fetch_fundamentals(ticker: str, as_of: date) -> dict:
@@ -318,7 +333,7 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
     return {
         "ticker": ticker,
         "as_of": as_of.isoformat(),
-        "jquants_summary": jq_summary[:4],  # latest 2 periods incl. growth calcs
+        "jquants_summary": jq_summary,
         "yfinance": yf_data,
     }
 
@@ -328,9 +343,32 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
 # ---------------------------------------------------------------------------
 
 def _yf_latest(ticker: str) -> dict:
-    """Latest close and 1-day change for a yfinance proxy."""
+    """Latest price and 1-day change for a yfinance proxy.
+
+    Prefers live/real-time info when available (e.g. USD/JPY intraday), otherwise
+    falls back to the most recent daily close.
+    """
     try:
         tk = yf.Ticker(ticker)
+        info = tk.info or {}
+    except Exception:
+        return {}
+
+    # Use live/real-time price when yfinance exposes it.
+    live_price = info.get("regularMarketPrice")
+    prev_close = info.get("regularMarketPreviousClose")
+    if live_price is not None:
+        out = {
+            "latest": safe(live_price),
+            "date": date.today().isoformat(),
+            "source": "live",
+        }
+        if prev_close is not None and prev_close != 0:
+            out["change_pct"] = safe((live_price / prev_close - 1) * 100)
+        return out
+
+    # Fallback to the most recent daily bar.
+    try:
         hist = tk.history(period="10d")
     except Exception:
         return {}
@@ -344,6 +382,7 @@ def _yf_latest(ticker: str) -> dict:
     out = {
         "latest": safe(last),
         "date": close.index[-1].date().isoformat(),
+        "source": "daily_close",
     }
     if prev is not None and prev != 0:
         out["change_pct"] = safe((last / prev - 1) * 100)
