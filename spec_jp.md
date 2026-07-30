@@ -29,7 +29,7 @@
 - **news（yfinance）**: 取得成功（英語ニュースが主体）
 - **macro（yfinance）**: 既存は S&P 500、米国10年債、金、原油が対象 → 日本市場には不十分
 
-**結論**: 日本株の財務・価格データは **J-Quants API（JPX 公式）** の方が完全。ニュース・マクロ・直近価格は yfinance で補完するハイブリッド構成が最適。
+**結論**: 日本株の財務・価格データは **J-Quants API（JPX 公式）** の方が完全。ニュース・直近価格は yfinance で補完し、日本の金利マクロは **BOJ API・財務省 CSV・FRED API** で取得するハイブリッド構成が最適。
 
 ### 2.3 日本市場への適用時の差分
 
@@ -37,11 +37,11 @@
 |------|-------------|---------------|
 | ティッカー形式 | `NVDA` | `TYO:6702` または `6702.T` |
 | 通貨 | USD | JPY |
-| マクロ指標 | S&P 500, 米10年債, 金, 原油 | 日経平均、USD/JPY、日本国債/BOJ動向、グローバル指標 |
+| マクロ指標 | S&P 500, 米10年債, 金, 原油 | 日経平均、USD/JPY、BOJ政策金利、日本国債10年、米10年債、原油 |
 | 会計年度 | 12月 | 多くは3月（富士通も3月決算） |
 | 市場特性 | 株式分割・買い戻し文化 | 持ち合い解消、ガバナンス改革、配当・自社株買い増加 |
 | ニュース言語 | 英語主体 | 英語 + 日本語情報の可能性（今回は yfinance 英語主体のまま） |
-| データソース | yfinance のみ | **J-Quants（財務・価格メイン）+ yfinance（ニュース・マクロ・直近価格補完）** |
+| データソース | yfinance のみ | **J-Quants（財務・価格メイン）+ yfinance（ニュース・指数・直近価格補完）+ BOJ API・財務省 CSV・FRED API（日本金利マクロ）** |
 | データ欠損 | 少ない | yfinance 単体では成長率系が null になりやすいが、**J-Quants で補完可能** |
 
 ## 3. 採用アプローチ：Option A
@@ -50,8 +50,9 @@
 
 - 既存 `trading-analysis` のエージェントフローはそのまま再利用
 - 日本市場に合わせてティッカー正規化、マクロ指標、プロンプト、通貨表記を変更
-- データ取得スクリプトは既存 `fetch_market_data.py` を拡張し、`--market jp` オプションを追加
-- **日本株データ源は J-Quants API をメインとし、yfinance はニュース・マクロ・直近価格の補完に回す**
+- データ取得スクリプトは日本株専用の `scripts/fetch_jp_market_data.py` を新規作成し、既存 `fetch_market_data.py` は変更しない
+- **日本株データ源は J-Quants API をメインとし、yfinance はニュース・指数・直近価格の補完に、BOJ API・財務省 CSV・FRED API は日本金利マクロの取得に使用する**
+- 既存 `fetch_market_data.py` と共有できるユーティリティ（`_safe`、テクニカル指標計算、ニュース正規化など）は必要に応じて `scripts/market_data_utils.py` に切り出す
 - `.claude/skills/trading-analysis-jp/SKILL.md` にシンボリックリンクを配置し、プラグインとして利用可能にする
 
 ### 採用理由
@@ -67,15 +68,16 @@
 | ファイル | 内容 |
 |---------|------|
 | `skills/trading-analysis-jp/SKILL.md` | 日本株版マルチエージェント分析スキル |
+| `scripts/fetch_jp_market_data.py` | 日本株専用データ取得スクリプト |
+| `scripts/market_data_utils.py` | 共有ユーティリティ（`_safe`、テクニカル指標計算、ニュース正規化など） |
 | `spec_jp.md` | 本計画書をプロジェクトルートに保存 |
 
 ### 4.2 修正
 
 | ファイル | 修正内容 |
 |---------|---------|
-| `scripts/fetch_market_data.py` | `--market jp` オプション追加、J-Quants API クライアント統合、日本マクロ指標取得関数追加、ティッカー正規化対応 |
 | `README.md` または `README_human.md` | `trading-analysis-jp` の使い方を追記 |
-| `.env.example` | `JQUANTS_API_KEY` 追加 |
+| `.env.example` | `JQUANTS_API_KEY`・`FRED_API_KEY` 追加 |
 
 ### 4.3 シンボリックリンク
 
@@ -85,21 +87,27 @@
 
 ## 5. 実装ステップ
 
-### Step 1: データ取得スクリプトの拡張（J-Quants 統合）
+### Step 1: 日本株データ取得スクリプトの新規作成（J-Quants 統合）
 
-`scripts/fetch_market_data.py` に以下を追加:
+`scripts/fetch_jp_market_data.py` を新規作成。既存 `fetch_market_data.py` は米国株専用のまま変更しない。共有ユーティリティは `scripts/market_data_utils.py` に切り出す。`fetch_jp_market_data.py` に以下を実装:
 
 - **J-Quants API クライアントの統合**
   - `requests` で直接 `https://api.jquants.com/v2` を呼び出す（公式クライアント `jquants-api-client` も検討可）
   - `.env` から `JQUANTS_API_KEY` を読み込み
   - 無料プランのレート制限（5 req/min）を考慮し、API 呼び出しは 1 実行あたり 2〜3 回に抑える
 
+- **FRED API クライアントの統合**
+  - `.env` から `FRED_API_KEY` を読み込み（ユーザーが既に設定済み）
+  - 日本マクロ指標の補完・検証用として使用
+  - 主な系列 ID:
+    - `IRLTLT01JPM156N`: 日本10年国債利回り（月次、OECD 経由）
+    - `IRSTCB01JPM156N`: 日銀中銀政策金利（月次）
+  - レート制限: 120 requests/minute
+
 - **ティッカー正規化関数**:
   - `TYO:6702` → J-Quants 用 `6702`、yfinance 用 `6702.T`
-  - `6702` → `6702.T`（`--market jp` 指定時）
+  - `6702` → `6702.T`
   - J-Quants 内部では 5桁コード `67020` で返ってくるが、4桁 `6702` でも受け付ける
-
-- **`--market {us,jp}` オプション**（デフォルトは `us`）
 
 - **日本株 technical データの取得ロジック**:
   - J-Quants `/v2/equities/bars/daily` から調整済み OHLCV を取得
@@ -112,12 +120,21 @@
   - yfinance から補完する項目: `trailingPE`, `forwardPE`, `beta`, `numberOfAnalystOpinions`, `targetMeanPrice`, `dividendYield`, 英語 `longBusinessSummary`
 
 - **`fetch_macro_jp(as_of)` 関数**:
-  - `^N225`（日経平均）
-  - `JPY=X` または `USDJPY=X`（円相場）
-  - `^TNX`（米10年債、グローバル影響）
-  - `CL=F`（原油）
-  - 必要に応じて日本国債 ETF や東証 REIT 指数など追加検討
-  - ※J-Quants 無料プランでは指数 OHLC は取得できないため、マクロは yfinance で賄う
+  - **yfinance（市場・通貨・商品）**:
+    - `^N225`（日経平均）
+    - `JPY=X` または `USDJPY=X`（円相場）
+    - `^TNX`（米10年債、グローバル影響）
+    - `CL=F`（原油）
+  - **BOJ API（日本政策金利）**:
+    - `FM01` データベースから無担保コールO/N物レートを取得
+    - 日銀政策金利の日次・月次時系列
+  - **財務省 CSV（日本国債金利）**:
+    - `https://www.mof.go.jp/jgbs/reference/interest_rate/data/jgbcm_all.csv` から国債スポットレートを取得
+    - 10年物利回りを `jgb_10y` として抽出
+  - **FRED API（補完・検証）**:
+    - `IRLTLT01JPM156N`（日本10年国債利回り、月次）
+    - 財務省 CSV と整合性を取るための検証用
+  - ※J-Quants 無料プランでは指数・マクロ OHLC は取得できないため、上記で賄う
 
 - **データソース対応表**:
 
@@ -126,7 +143,9 @@
 | 日本株 OHLC | J-Quants | yfinance（直近 12 週間） | J-Quants は調整済みで正確。無料プランは 12 週遅延 |
 | 日本株財務 | J-Quants | yfinance（P/E, beta, アナリスト目標など） | J-Quants の財務サマリーが完全 |
 | 日本株ニュース | yfinance | - | J-Quants にニュースエンドポイントはない |
-| マクロ指標 | yfinance | - | J-Quants 無料プランでは指数データ不可 |
+| 日銀政策金利 | BOJ API | FRED API（`IRSTCB01JPM156N`） | 日銀の一次データ。FRED は月次で補完 |
+| 日本国債10年利回り | 財務省 CSV | FRED API（`IRLTLT01JPM156N`） | 財務省は全年限の日次データ。FRED は検証用 |
+| 日経平均/円相場/米10年債/原油 | yfinance | - | 指数・通貨・商品は yfinance で十分 |
 | 売上成長率/利益成長率 | J-Quants から自前計算 | - | yfinance では null になりやすい |
 
 ### Step 2: `skills/trading-analysis-jp/SKILL.md` の作成
@@ -134,8 +153,8 @@
 既存 `SKILL.md` をコピーし、以下を日本市場向けに改変:
 
 - ティッカー入力例を `TYO:6702` に変更
-- 全エージェントのデータ取得コマンドに `--market jp` を追加
-- Phase 1 マクロアナリストのプロンプトを日本市場コンテキストに変更
+- 全エージェントのデータ取得コマンドを `scripts/fetch_jp_market_data.py` に変更（`--market jp` は不要）
+- Phase 1 マクロアナリストのプロンプトを日本市場コンテキストに変更（BOJ 政策金利、財務省 CSV の日本10年国債利回り、円相場、日経平均、米10年債を参照するよう指示）
 - Phase 4/5 の価格表記を `¥3,844` 形式に変更
 - Phase 5 の `TICKER` フィールドに `TYO:6702` を使用
 - ファンダメンタル分析で、日本企業特有の項目（3月決算、配当利回り、持合解消、自社株買い）に言及
@@ -151,8 +170,8 @@ ln -s ../../../skills/trading-analysis-jp/SKILL.md .claude/skills/trading-analys
 
 ```bash
 uv run --project /home/masasikatano/project/trading-agents-plugin python \
-  /home/masasikatano/project/trading-agents-plugin/scripts/fetch_market_data.py \
-  --ticker 6702.T --type technical --market jp --date 2026-07-29
+  /home/masasikatano/project/trading-agents-plugin/scripts/fetch_jp_market_data.py \
+  --ticker TYO:6702 --type technical --date 2026-07-29
 ```
 
 ### Step 5: ドキュメント更新
@@ -162,7 +181,8 @@ uv run --project /home/masasikatano/project/trading-agents-plugin python \
 - 日本市場対応の制限事項を明記:
   - ニュースは英語主体
   - J-Quants 無料プランでは株価データに 12 週間の遅延あり
-  - 指数・マクロデータは J-Quants 無料プランでは未取得のため yfinance を使用
+  - 指数データ（日経平均、円相場、米10年債、原油）は J-Quants 無料プランでは未取得のため yfinance を使用
+  - 日本の金利データ（BOJ政策金利・日本国債10年利回り）は BOJ API・財務省 CSV・FRED API から取得
   - `shortRatio` などの空売り指標は J-Quants 有料プラン限定のため未取得
 
 ## 6. テスト計画
@@ -174,19 +194,23 @@ uv run --project /home/masasikatano/project/trading-agents-plugin python \
 | ティッカー正規化 | `TYO:6702` → J-Quants `6702` / yfinance `6702.T` | スクリプトが正しく解釈 |
 | 成長率計算 | J-Quants の `Sales`/`OP`/`NP` 時系列から成長率を導出 | `revenue_growth`, `earnings_growth` フィールドが存在 |
 | 直近価格補完 | J-Quants 遅延期間中のデータが yfinance で補完されている | 最新 10 営業日の終値が欠損していない |
-| マクロ日本版 | `^N225`, `JPY=X` のニュース取得 | macro_news_count > 0 |
+| マクロ日本版 | `^N225`, `JPY=X`, `^TNX`, `CL=F` の取得 | 各指標の最新値が存在 |
+| BOJ API 接続 | 無担保コールO/N物レート（`FM01`）を取得 | JSON が返り、`boj_policy_rate` フィールドが存在 |
+| 財務省 CSV | `jgbcm_all.csv` から10年国債利回りを抽出 | `jgb_10y` フィールドが存在 |
+| FRED API 接続 | `.env` の `FRED_API_KEY` で `IRLTLT01JPM156N` を取得 | 200 が返り、`fred_jgb_10y` フィールドが存在 |
+| マクロ整合性 | 財務省 CSV の10年利回りと FRED の10年利回りを比較 | 両者の差が許容範囲内（±0.1%程度） |
 | スキル実行 | `/trading-analysis-jp TYO:6702` | Phase 1〜5 が完了し、最終 SIGNAL が出力される |
 
 ## 7. リスクと対応
 
 | リスク | 対応 |
 |-------|------|
-| J-Quants API key が未設定 | `--market jp` 実行時に `.env` から `JQUANTS_API_KEY` を読み込み、未設定の場合はエラーメッセージを表示 |
+| J-Quants API key が未設定 | `fetch_jp_market_data.py` 実行時に `.env` から `JQUANTS_API_KEY` を読み込み、未設定の場合はエラーメッセージを表示 |
 | J-Quants 無料プランのレート制限（5 req/min） | 1 回のスクリプト実行で J-Quants API 呼び出しを 2〜3 回に抑え、必要に応じてリトライ待機を実装 |
 | J-Quants 無料プランの 12 週間遅延 | 直近 12 週間の株価は yfinance `6702.T` で補完。テクニカル指標は両データ源を結合して計算 |
 | yfinance の日本株データが不完全 | J-Quants で取得可能な財務データはそちらを優先。yfinance 固有の null 項目（`shortRatio` など）はアナリストに「利用可能な指標のみで分析」と指示 |
 | 日本語ニュースが取得できない | 英語ニュース主体で運用。必要に応じて日本語ニュース源の追加は将来拡張 |
-| マクロ指標の不足（日銀政策金利など） | `^N225` + 円相場 + 米指標でカバー。追加が必要な場合は WebSearch 等を検討 |
+| マクロ指標の不足（日銀政策金利など） | BOJ API（政策金利）+ 財務省 CSV（国債10年）+ FRED API（補完）でカバー。数値データでは補えない最新動向（日銀声明・総裁会見など）が必要な場合は WebSearch を検討 |
 | 既存スキルとの重複コード | データ取得関数の共通化を検討。今回はコピー改変で最小限の変更を優先 |
 
 ## 8. オープン問題
@@ -196,5 +220,5 @@ uv run --project /home/masasikatano/project/trading-agents-plugin python \
    - 公式クライアントを使うと DataFrame 返却・認証周りが楽だが `pyproject.toml` に依存追加が必要
 2. J-Quants から取得した財務データをどの程度正規化して LLM プロンプトに渡すか？
    - 例: 成長率を計算して追加する、日本語の決算期（1Q/2Q/3Q/FY）をそのまま渡すなど
-3. マクロ指標に日銀政策金利や日本10年国債を含めるか？
+3. ~~マクロ指標に日銀政策金利や日本10年国債を含めるか？~~ → **含める。BOJ API で政策金利、財務省 CSV で日本国債10年利回り、FRED API で補完・検証を行う**
 4. 出力は日本語にするか、英語のままにするか？
