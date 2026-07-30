@@ -1,0 +1,1 @@
+../../../skills/trading-analysis-jp/SKILL.md

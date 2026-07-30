@@ -25,6 +25,23 @@ uv sync   # or: pip install yfinance pandas
 /trading-analysis SOXL
 ```
 
+### Japan equities (`trading-analysis-jp`)
+
+For Tokyo Stock Exchange tickers, prefix with `TYO:`:
+
+```
+/trading-analysis-jp TYO:6702
+```
+
+This uses `scripts/fetch_jp_market_data.py`, which combines J-Quants API (prices/financials), yfinance (news, indices, recent price fill), BOJ API + MOF CSV + FRED API (Japanese rates).
+
+Required environment variables:
+
+```bash
+JQUANTS_API_KEY=   # issued from the J-Quants API v2 dashboard
+FRED_API_KEY=      # optional, used for Japanese-rate cross-check
+```
+
 ## Pipeline
 
 ```
@@ -35,7 +52,11 @@ Phase 4:               Trader sets entry / stop / size anchored to technicals
 Phase 5:               Portfolio Manager → final BUY / SELL / HOLD
 ```
 
-9 subagents total. Each phase uses Claude Code's native `Agent` tool. Data is fetched for free via [yfinance](https://github.com/ranaroussi/yfinance) — no OpenAI, Anthropic, or any other LLM API key required.
+9 subagents total. Each phase uses Claude Code's native `Agent` tool.
+
+Data sources:
+- US tickers: [yfinance](https://github.com/ranaroussi/yfinance) only — no API key required.
+- Japan tickers: J-Quants API v2 (prices/financials), yfinance (news, indices, recent-price gap fill), BOJ time-series API, Japanese MOF JGB CSV, and optional FRED API for cross-checking Japanese rates.
 
 ## What each analyst covers
 
@@ -44,7 +65,7 @@ Phase 5:               Portfolio Manager → final BUY / SELL / HOLD
 | **Technical** | EMA10/SMA50/SMA200 trend, RSI14, MACD, Bollinger Bands, ATR, key support/resistance |
 | **News** | Top headlines, sentiment, sector tailwinds/headwinds, earnings signals |
 | **Fundamentals** | P/E, forward P/E, PEG, P/B, revenue/earnings growth, margins, ROE, FCF, D/E ratio, current ratio, beta, short ratio, quarterly income/balance sheet statements, analyst consensus |
-| **Macro** | S&P 500, 10Y Treasury, gold, oil news — geopolitical/monetary policy signals |
+| **Macro** | S&P 500, 10Y Treasury, gold, oil news — geopolitical/monetary policy signals (US); Nikkei 225, USD/JPY, BOJ policy rate, JGB 10Y, US 10Y, oil (JP) |
 | **Bull** | Strongest buy case using all Phase 1 data |
 | **Bear** | Directly rebuts Bull's specific claims with data |
 | **Aggressive Risk** | Champions the high-reward side — pushes back against overcaution and highlights upside optionality |
@@ -90,9 +111,11 @@ cd trading-agents-plugin
 uv sync
 mkdir -p ~/.claude/skills/trading-analysis
 cp .claude/skills/trading-analysis/SKILL.md ~/.claude/skills/trading-analysis/
+mkdir -p ~/.claude/skills/trading-analysis-jp
+cp .claude/skills/trading-analysis-jp/SKILL.md ~/.claude/skills/trading-analysis-jp/
 ```
 
-Then update the script path in `~/.claude/skills/trading-analysis/SKILL.md` to match your local clone path.
+Then update the script paths in `~/.claude/skills/trading-analysis/SKILL.md` and `~/.claude/skills/trading-analysis-jp/SKILL.md` to match your local clone path.
 
 ## Inspiration
 

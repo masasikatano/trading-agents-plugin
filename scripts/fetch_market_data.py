@@ -6,21 +6,21 @@ Usage:
   python scripts/fetch_market_data.py --ticker NVDA --type fundamentals --date 2026-05-02
 """
 import argparse
-import json
-import math
 import sys
 from datetime import date, timedelta
 
 import yfinance as yf
-import pandas as pd
 
-
-def _safe(val):
-    try:
-        f = float(val)
-        return None if math.isnan(f) or math.isinf(f) else round(f, 2)
-    except (TypeError, ValueError):
-        return None
+from market_data_utils import (
+    compute_technicals,
+    dump_json,
+    make_indicator_summary,
+    make_price_summary,
+    normalize_yfinance_news,
+    recent_closes,
+    safe,
+    statement_to_dict,
+)
 
 
 def fetch_technical(ticker: str, as_of: date) -> dict:
@@ -31,85 +31,23 @@ def fetch_technical(ticker: str, as_of: date) -> dict:
     if hist.empty:
         return {"error": f"No price data for {ticker}"}
 
+    indicators = compute_technicals(hist)
     close = hist["Close"]
-    volume = hist["Volume"]
-
-    ema10 = close.ewm(span=10).mean()
-    sma50 = close.rolling(50).mean()
-    sma200 = close.rolling(200).mean()
-
-    delta = close.diff()
-    gain = delta.clip(lower=0).rolling(14).mean()
-    loss = (-delta.clip(upper=0)).rolling(14).mean()
-    rs = gain / loss.replace(0, float("nan"))
-    rsi = 100 - (100 / (1 + rs))
-    rsi = rsi.fillna(100)
-
-    ema12 = close.ewm(span=12).mean()
-    ema26 = close.ewm(span=26).mean()
-    macd = ema12 - ema26
-    signal = macd.ewm(span=9).mean()
-
-    sma20 = close.rolling(20).mean()
-    std20 = close.rolling(20).std()
-    boll_upper = sma20 + 2 * std20
-    boll_lower = sma20 - 2 * std20
-
-    atr_high = hist["High"]
-    atr_low = hist["Low"]
-    tr = pd.concat([
-        atr_high - atr_low,
-        (atr_high - close.shift()).abs(),
-        (atr_low - close.shift()).abs(),
-    ], axis=1).max(axis=1)
-    atr = tr.rolling(14).mean()
-
-    last = hist.index[-1].date().isoformat()
-    prev_close = float(close.iloc[-2]) if len(close) >= 2 else None
 
     return {
         "ticker": ticker,
         "as_of": as_of.isoformat(),
-        "last_trading_day": last,
-        "price": {
-            "current": _safe(close.iloc[-1]),
-            "prev_close": _safe(prev_close) if prev_close is not None else None,
-            "change_pct": _safe((float(close.iloc[-1]) / prev_close - 1) * 100) if prev_close is not None and prev_close != 0 else None,
-            "52w_high": _safe(close.rolling(252).max().iloc[-1]),
-            "52w_low": _safe(close.rolling(252).min().iloc[-1]),
-        },
-        "indicators": {
-            "ema10": _safe(ema10.iloc[-1]),
-            "sma50": _safe(sma50.iloc[-1]),
-            "sma200": _safe(sma200.iloc[-1]),
-            "rsi14": _safe(rsi.iloc[-1]),
-            "macd": _safe(macd.iloc[-1]),
-            "macd_signal": _safe(signal.iloc[-1]),
-            "macd_hist": _safe(macd.iloc[-1] - signal.iloc[-1]),
-            "boll_upper": _safe(boll_upper.iloc[-1]),
-            "boll_mid": _safe(sma20.iloc[-1]),
-            "boll_lower": _safe(boll_lower.iloc[-1]),
-            "atr14": _safe(atr.iloc[-1]),
-        },
-        "recent_closes": {
-            row.date().isoformat(): _safe(val)
-            for row, val in close.tail(10).items()
-        },
+        "last_trading_day": close.index[-1].date().isoformat(),
+        "price": make_price_summary(close),
+        "indicators": make_indicator_summary(indicators),
+        "recent_closes": recent_closes(close),
     }
 
 
 def fetch_news(ticker: str, as_of: date) -> dict:
     # yfinance always returns latest news regardless of as_of date
     tk = yf.Ticker(ticker)
-    news = tk.news or []
-
-    items = []
-    for n in news[:15]:
-        items.append({
-            "title": n.get("content", {}).get("title", n.get("title", "")),
-            "summary": n.get("content", {}).get("summary", ""),
-            "publisher": n.get("content", {}).get("provider", {}).get("displayName", ""),
-        })
+    items = normalize_yfinance_news(tk.news)
 
     return {
         "ticker": ticker,
@@ -131,8 +69,7 @@ def fetch_macro(as_of: date) -> dict:
     seen = set()
     for sym, label in macro_tickers.items():
         try:
-            news = yf.Ticker(sym).news or []
-            for n in news[:5]:
+            for n in (yf.Ticker(sym).news or [])[:5]:
                 title = n.get("content", {}).get("title", n.get("title", ""))
                 if title and title not in seen:
                     seen.add(title)
@@ -171,33 +108,11 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
     data["as_of"] = as_of.isoformat()
     for k in list(data.keys()):
         if isinstance(data[k], float):
-            data[k] = _safe(data[k])
+            data[k] = safe(data[k])
 
-    def _stmt_to_dict(df):
-        if df is None or df.empty:
-            return {}
-        out = {}
-        for col in df.columns[:2]:
-            label = col.date().isoformat() if hasattr(col, "date") else str(col)
-            out[label] = {
-                str(idx): (_safe(v) if isinstance(v, float) else v)
-                for idx, v in df[col].items()
-                if v is not None and not (isinstance(v, float) and math.isnan(v))
-            }
-        return out
-
-    try:
-        data["quarterly_income_stmt"] = _stmt_to_dict(tk.quarterly_income_stmt)
-    except Exception:
-        data["quarterly_income_stmt"] = {}
-    try:
-        data["quarterly_balance_sheet"] = _stmt_to_dict(tk.quarterly_balance_sheet)
-    except Exception:
-        data["quarterly_balance_sheet"] = {}
-    try:
-        data["quarterly_cashflow"] = _stmt_to_dict(tk.quarterly_cashflow)
-    except Exception:
-        data["quarterly_cashflow"] = {}
+    data["quarterly_income_stmt"] = statement_to_dict(tk.quarterly_income_stmt)
+    data["quarterly_balance_sheet"] = statement_to_dict(tk.quarterly_balance_sheet)
+    data["quarterly_cashflow"] = statement_to_dict(tk.quarterly_cashflow)
 
     return data
 
@@ -222,7 +137,7 @@ def main():
     except Exception as e:
         result = {"error": str(e), "ticker": args.ticker, "type": args.type}
 
-    print(json.dumps(result, indent=2, default=str))
+    print(dump_json(result))
 
 
 if __name__ == "__main__":

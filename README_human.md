@@ -68,7 +68,7 @@ Phase 5: Portfolio Manager（ポートフォリオマネージャー）が最終
 
 ## データはどこから来るのか
 
-`scripts/fetch_market_data.py` という Python スクリプトが、Yahoo Finance（yfinance ライブラリ）から無料でデータを取得します。
+米国株は `scripts/fetch_market_data.py` が Yahoo Finance（yfinance ライブラリ）から無料でデータを取得します。
 
 取得できるデータは 4 種類：
 
@@ -78,6 +78,18 @@ Phase 5: Portfolio Manager（ポートフォリオマネージャー）が最終
 | `news` | その銘柄に関する Yahoo Finance のニュースタイトル・概要・出版社 |
 | `fundamentals` | 時価総額、PER、PBR、成長率、利益率、ROE、キャッシュ・債務、アナリスト レーティング・目標株価、四半期決算（損益計算書・貸借対照表・キャッシュフロー） |
 | `macro` | S&P 500、10 年国債、金先物、原油先物に関するニュース |
+
+日本株は `scripts/fetch_jp_market_data.py` が、以下のデータ源を組み合わせて取得します。
+
+| データ種別 | 優先数据源 | 補完/フォールバック |
+|---|---|---|
+| 日本株 OHLC | J-Quants `/v2/equities/bars/daily` | yfinance（直近 12 週間など J-Quants 未提供分） |
+| 日本株財務 | J-Quants `/v2/fins/summary` | yfinance（P/E、beta、アナリスト目標など） |
+| 日本株ニュース | yfinance | — |
+| 日銀政策金利 | BOJ API（FM01 / STRDCLUCON） | FRED API |
+| 日本国債10年利回り | 財務省 CSV | FRED API（検証用） |
+| 日経平均/円相場/米10年債/原油 | yfinance | — |
+| 売上成長率/利益成長率 | J-Quants から自前計算 | — |
 
 ---
 
@@ -97,6 +109,23 @@ Phase 5: Portfolio Manager（ポートフォリオマネージャー）が最終
 ```
 
 と打つだけで分析が始まります。
+
+### 日本株版 `trading-analysis-jp`
+
+東証上場銘柄を分析する場合は、以下のようにティッカーに `TYO:` プレフィックスを付けてください。
+
+```
+/trading-analysis-jp TYO:6702
+```
+
+内部的には `scripts/fetch_jp_market_data.py` が動作し、J-Quants API（財務・株価）+ yfinance（ニュース・指数・直近価格）+ BOJ API・財務省 CSV・FRED API（日本の金利マクロ）を組み合わせてデータを取得します。
+
+必要な環境変数:
+
+```bash
+JQUANTS_API_KEY=   # J-Quants API v2 のダッシュボードで発行
+FRED_API_KEY=      # 任意（日本金利データの補完・検証用）
+```
 
 ### 手動で使う場合
 
@@ -166,23 +195,35 @@ uv run --project /Users/davidchen/repo/TradingAgents python /Users/davidchen/rep
 あくまでデモ・研究用の自動分析パイプラインです。  
 実際の投資判断は自分の責任で行ってください。
 
+### 4. 日本株版の制限事項
+
+- ニュースは英語主体（yfinance のデータ）
+- J-Quants 無料プランでは、株価データに最大 12 週間の遅延があります。不足分は yfinance で補完
+- 指数データ（日経平均、円相場、米10年債、原油）は J-Quants 無料プランでは未取得のため yfinance を使用
+- 日本の金利データ（BOJ政策金利・日本国債10年利回り）は BOJ API・財務省 CSV・FRED API から取得
+- `shortRatio` などの空売り指標は J-Quants 有料プラン限定のため未取得
+
 ---
 
 ## ファイル構成の概要
 
 ```
 trading-agents-plugin/
-├── README.md                 # 英語版の公式 README
-├── README_human.md           # このファイル（人間向け日本語解説）
-├── pyproject.toml            # Python パッケージ設定
-├── uv.lock                   # 依存関係ロックファイル
+├── README.md                          # 英語版の公式 README
+├── README_human.md                    # このファイル（人間向け日本語解説）
+├── pyproject.toml                     # Python パッケージ設定
+├── uv.lock                            # 依存関係ロックファイル
 ├── scripts/
-│   └── fetch_market_data.py  # Yahoo Finance からデータを取得するスクリプト
-├── .claude/skills/trading-analysis/
-│   └── SKILL.md              # 手動インストール用 skill 定義
-├── skills/trading-analysis/
-│   └── SKILL.md              # プラグイン配布用 skill 定義
-└── reports/                  # 実行レポート・調査用レポートのサンプル
+│   ├── fetch_market_data.py           # 米国株データ取得（Yahoo Finance）
+│   ├── fetch_jp_market_data.py        # 日本株データ取得（J-Quants + BOJ + MOF + FRED + yfinance）
+│   └── market_data_utils.py           # 共有ユーティリティ
+├── .claude/skills/
+│   ├── trading-analysis/SKILL.md      # 米国株用 skill（シンボリックリンク）
+│   └── trading-analysis-jp/SKILL.md   # 日本株用 skill（シンボリックリンク）
+├── skills/
+│   ├── trading-analysis/SKILL.md      # プラグイン配布用 skill 定義
+│   └── trading-analysis-jp/SKILL.md   # 日本株版 skill 定義
+└── reports/                           # 実行レポート・調査用レポートのサンプル
     └── 20260729_NVDA_Grok.md
 ```
 
