@@ -118,6 +118,14 @@ Phase 5: Portfolio Manager（ポートフォリオマネージャー）が最終
 /trading-analysis-jp TYO:6702
 ```
 
+以下はレポート保存込みのプロンプトです。
+```
+/trading-analysis-jp TYO:3132
+を実行して、分析レポートを、
+reports/20260731_TYO3132_Grok.md
+に保存して。
+```
+
 内部的には `scripts/fetch_jp_market_data.py` が動作し、J-Quants API（財務・株価）+ yfinance（ニュース・指数・直近価格）+ BOJ API・財務省 CSV・FRED API（日本の金利マクロ）を組み合わせてデータを取得します。
 
 必要な環境変数:

@@ -343,12 +343,42 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
 # Macro (Japan)
 # ---------------------------------------------------------------------------
 
+def _yf_history_latest(ticker: str) -> dict:
+    """Latest daily close from yfinance history."""
+    try:
+        tk = yf.Ticker(ticker)
+        hist = tk.history(period="1mo")
+    except Exception:
+        return {}
+    if hist.empty:
+        return {}
+    close = hist["Close"].dropna()
+    if close.empty:
+        return {}
+    last = float(close.iloc[-1])
+    prev = float(close.iloc[-2]) if len(close) >= 2 else None
+    out = {
+        "latest": safe(last),
+        "date": close.index[-1].date().isoformat(),
+        "source": "daily_close",
+    }
+    if prev is not None and prev != 0:
+        out["change_pct"] = safe((last / prev - 1) * 100)
+    return out
+
+
 def _yf_latest(ticker: str) -> dict:
     """Latest price and 1-day change for a yfinance proxy.
 
-    Prefers live/real-time info when available (e.g. USD/JPY intraday), otherwise
-    falls back to the most recent daily close.
+    For FX proxies (e.g. JPY=X) we prefer the most recent daily close because
+    yfinance's live/out-of-hours regularMarketPrice can be stale or distorted,
+    producing misleading levels and change percentages.  Non-FX proxies keep the
+    previous live-first behaviour.
     """
+    is_fx = ticker in {"JPY=X"} or "=X" in ticker
+    if is_fx:
+        return _yf_history_latest(ticker)
+
     try:
         tk = yf.Ticker(ticker)
         info = tk.info or {}
@@ -369,25 +399,67 @@ def _yf_latest(ticker: str) -> dict:
         return out
 
     # Fallback to the most recent daily bar.
+    return _yf_history_latest(ticker)
+
+
+def _fred_dexjpus_latest() -> dict:
+    """Latest USD/JPY from FRED DEXJPUS (Fed H.10, daily)."""
+    if not FRED_API_KEY:
+        return {}
+    params = {
+        "series_id": "DEXJPUS",
+        "api_key": FRED_API_KEY,
+        "file_type": "json",
+        "sort_order": "desc",
+        "limit": 2,
+    }
     try:
-        hist = tk.history(period="10d")
+        resp = requests.get(FRED_BASE, params=params, timeout=30)
+        resp.raise_for_status()
+        obs = resp.json().get("observations", [])
+        if len(obs) < 1:
+            return {}
+        values = []
+        for o in obs:
+            v = o.get("value")
+            if v in (".", "", None):
+                continue
+            try:
+                values.append((o.get("date"), float(v)))
+            except (TypeError, ValueError):
+                continue
+        if not values:
+            return {}
+        latest_date, latest_val = values[0]
+        prev_val = values[1][1] if len(values) >= 2 else None
+        out = {
+            "latest": safe(latest_val),
+            "date": latest_date,
+            "source": "fred_dexjpus",
+        }
+        if prev_val is not None and prev_val != 0:
+            out["change_pct"] = safe((latest_val / prev_val - 1) * 100)
+        return out
     except Exception:
         return {}
-    if hist.empty:
+
+
+def _open_er_usdjpy_latest() -> dict:
+    """Latest USD/JPY from open.er-api.com (free, no key)."""
+    try:
+        resp = requests.get("https://open.er-api.com/v6/latest/USD", timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        rates = data.get("rates", {})
+        if "JPY" not in rates:
+            return {}
+        return {
+            "latest": safe(float(rates["JPY"])),
+            "date": data.get("time_last_update_utc", date.today().isoformat())[:10],
+            "source": "open_er_api",
+        }
+    except Exception:
         return {}
-    close = hist["Close"].dropna()
-    if close.empty:
-        return {}
-    last = float(close.iloc[-1])
-    prev = float(close.iloc[-2]) if len(close) >= 2 else None
-    out = {
-        "latest": safe(last),
-        "date": close.index[-1].date().isoformat(),
-        "source": "daily_close",
-    }
-    if prev is not None and prev != 0:
-        out["change_pct"] = safe((last / prev - 1) * 100)
-    return out
 
 
 def _fred_latest(series_id: str) -> dict:
@@ -499,18 +571,23 @@ def fetch_boj_policy_rate() -> dict:
 
 
 def fetch_macro(as_of: date) -> dict:
+    # USD/JPY: yfinance daily close first (more reliable than live/out-of-hours),
+    # then FRED DEXJPUS, then open.er-api.com as a last resort.
+    usdjpy = _yf_latest("JPY=X") or _fred_dexjpus_latest() or _open_er_usdjpy_latest()
     result = {
         "as_of": as_of.isoformat(),
         "indices": {
             "n225": _yf_latest("^N225"),
-            "usdjpy": _yf_latest("JPY=X"),
+            "usdjpy": usdjpy,
             "us10y": _yf_latest("^TNX"),
             "crude_oil": _yf_latest("CL=F"),
         },
         "boj_policy_rate": fetch_boj_policy_rate(),
         "jgb_10y": fetch_mof_jgb_10y(),
         "fred_jgb_10y": _fred_latest("IRLTLT01JPM156N"),
-        "fred_policy_rate": _fred_latest("IRSTCB01JPM156N"),
+        # NOTE: fred_policy_rate (IRSTCB01JPM156N) was removed because the series
+        # stopped updating in 2023-12.  Use boj_policy_rate as the primary policy
+        # rate and fred_call_rate only if you explicitly need interbank call money.
     }
     return result
 

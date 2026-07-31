@@ -101,7 +101,8 @@
   - 日本マクロ指標の補完・検証用として使用
   - 主な系列 ID:
     - `IRLTLT01JPM156N`: 日本10年国債利回り（月次、OECD 経由）
-    - `IRSTCB01JPM156N`: 日銀中銀政策金利（月次）
+    - `DEXJPUS`: USD/JPY 日次レート（Fed H.10）— `JPY=X` のフォールバック用
+    - ~~`IRSTCB01JPM156N`: 日銀中銀政策金利（月次）~~ → **2023-12 で更新停止したため非推奨**
   - レート制限: 120 requests/minute
 
 - **ティッカー正規化関数**:
@@ -143,9 +144,10 @@
 | 日本株 OHLC | J-Quants | yfinance（直近 12 週間） | J-Quants は調整済みで正確。無料プランは 12 週遅延 |
 | 日本株財務 | J-Quants | yfinance（P/E, beta, アナリスト目標など） | J-Quants の財務サマリーが完全 |
 | 日本株ニュース | yfinance | - | J-Quants にニュースエンドポイントはない |
-| 日銀政策金利 | BOJ API | FRED API（`IRSTCB01JPM156N`） | 日銀の一次データ。FRED は月次で補完 |
+| 日銀政策金利 | BOJ API | — | 日銀の一次データ。FRED `IRSTCB01JPM156N` は2023-12で停止したため非推奨 |
 | 日本国債10年利回り | 財務省 CSV | FRED API（`IRLTLT01JPM156N`） | 財務省は全年限の日次データ。FRED は検証用 |
-| 日経平均/円相場/米10年債/原油 | yfinance | - | 指数・通貨・商品は yfinance で十分 |
+| 日経平均/米10年債/原油 | yfinance | — | 指数・商品は yfinance で十分 |
+| USD/JPY | yfinance `JPY=X` daily close | FRED `DEXJPUS` / open.er-api.com | yfinance の live 価格は時間外で歪むため、日次 Close を優先 |
 | 売上成長率/利益成長率 | J-Quants から自前計算 | - | yfinance では null になりやすい |
 
 ### Step 2: `skills/trading-analysis-jp/SKILL.md` の作成
@@ -210,7 +212,7 @@ uv run --project /home/masasikatano/project/trading-agents-plugin python \
 | J-Quants 無料プランの 12 週間遅延 | 直近 12 週間の株価は yfinance `6702.T` で補完。テクニカル指標は両データ源を結合して計算 |
 | yfinance の日本株データが不完全 | J-Quants で取得可能な財務データはそちらを優先。yfinance 固有の null 項目（`shortRatio` など）はアナリストに「利用可能な指標のみで分析」と指示 |
 | 日本語ニュースが取得できない | 英語ニュース主体で運用。必要に応じて日本語ニュース源の追加は将来拡張 |
-| マクロ指標の不足（日銀政策金利など） | BOJ API（政策金利）+ 財務省 CSV（国債10年）+ FRED API（補完）でカバー。数値データでは補えない最新動向（日銀声明・総裁会見など）が必要な場合は WebSearch を検討 |
+| マクロ指標の不足（日銀政策金利など） | BOJ API（政策金利）+ 財務省 CSV（国債10年）+ FRED API（日本国債10年・USD/JPY 補完）でカバー。数値データでは補えない最新動向（日銀声明・総裁会見など）が必要な場合は WebSearch を検討 |
 | 既存スキルとの重複コード | データ取得関数の共通化を検討。今回はコピー改変で最小限の変更を優先 |
 
 ## 8. オープン問題
