@@ -176,6 +176,22 @@ uv run python scripts/fetch_jp_market_data.py --ticker TYO:6702 --type technical
 
 `--verbose` を付けない場合は従来通り JSON のみが stdout に出力されます。
 
+### レポートの事後検証 `report-backtest`
+
+保存した分析レポートを、レポート日から **7 暦日以上** 経ってから検証します。「当時の SIGNAL / ENTRY / STOP を信じて執行していたらどうなっていたか」を価格で確認します。分析パイプライン（`trading-analysis` / `trading-analysis-jp`）は再実行しません。
+
+```
+/report-backtest reports/20260731_TYO6952_Grok.md
+/report-backtest reports/20260731_TYO6952_Grok.md --eval 2026-08-24
+/report-backtest 20260731
+```
+
+- `--eval` を省略すると評価日は今日です。日付プレフィックス（例: `20260731`）だと、その日の `reports/` を一括検証します。
+- 結果は `backtests/20260731_TYO6952_20260824.md` のように保存されます。一括時は `backtests/{日付}_summary_{評価日}.md` も出ます。
+- 価格は `scripts/fetch_backtest_prices.py` が取ります（日本株は J-Quants + yfinance、米株は yfinance）。
+- 判定は `ALIGNED`（方向が合った）/ `MISALIGNED`（外れた）/ `INCONCLUSIVE`（判断不能）です。HOLD は「株が動いた＝失敗」にはしません。
+- 外れた場合（`MISALIGNED`）だけ、同じバックテスト報告に予測スキル（日本株なら `trading-analysis-jp`）への修正草案を追記します。スキルファイル自体はその場では書き換えません。
+
 ### 手動で使う場合
 
 ```bash
@@ -189,6 +205,10 @@ uv sync   # pip install yfinance pandas python-dotenv requests でも可
 ```bash
 mkdir -p ~/.claude/skills/trading-analysis
 cp .claude/skills/trading-analysis/SKILL.md ~/.claude/skills/trading-analysis/
+mkdir -p ~/.claude/skills/trading-analysis-jp
+cp .claude/skills/trading-analysis-jp/SKILL.md ~/.claude/skills/trading-analysis-jp/
+mkdir -p ~/.claude/skills/report-backtest
+cp .claude/skills/report-backtest/SKILL.md ~/.claude/skills/report-backtest/
 ```
 
 **注意：** skill ファイル内の Python スクリプトパスが、自分の環境と一致していることを確認してください。
@@ -265,15 +285,19 @@ trading-agents-plugin/
 ├── scripts/
 │   ├── fetch_market_data.py           # 米国株データ取得（Yahoo Finance）
 │   ├── fetch_jp_market_data.py        # 日本株データ取得（J-Quants + BOJ + MOF + FRED + yfinance）
+│   ├── fetch_backtest_prices.py       # レポート事後検証用の期間 OHLCV
 │   └── market_data_utils.py           # 共有ユーティリティ
 ├── .claude/skills/
-│   ├── trading-analysis/SKILL.md      # 米国株用 skill（シンボリックリンク）
-│   └── trading-analysis-jp/SKILL.md   # 日本株用 skill（シンボリックリンク）
+│   ├── trading-analysis/SKILL.md      # 米国株用 skill
+│   ├── trading-analysis-jp/SKILL.md   # 日本株用 skill
+│   └── report-backtest/SKILL.md       # 保存レポートの事後検証
 ├── skills/
-│   ├── trading-analysis/SKILL.md      # プラグイン配布用 skill 定義
-│   └── trading-analysis-jp/SKILL.md   # 日本株版 skill 定義
-└── reports/                           # 実行レポート・調査用レポートのサンプル
-    └── 20260729_NVDA_Grok.md
+│   ├── trading-analysis/SKILL.md
+│   ├── trading-analysis-jp/SKILL.md
+│   └── report-backtest/SKILL.md
+├── reports/                           # 分析レポート
+│   └── 20260731_TYO6952_Grok.md
+└── backtests/                         # report-backtest の出力
 ```
 
 ---

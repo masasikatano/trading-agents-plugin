@@ -42,6 +42,18 @@ JQUANTS_API_KEY=   # issued from the J-Quants API v2 dashboard
 FRED_API_KEY=      # optional, used for Japanese-rate cross-check
 ```
 
+### Report backtest (`report-backtest`)
+
+After at least 7 calendar days, check what would have happened if you followed a saved analysis report (`SIGNAL` / `ENTRY` / `STOP`). Does not re-run the analysis pipeline.
+
+```
+/report-backtest reports/20260731_TYO6952_Grok.md
+/report-backtest reports/20260731_TYO6952_Grok.md --eval 2026-08-24
+/report-backtest 20260731
+```
+
+Writes `backtests/{report_date}_{ticker}_{eval_date}.md`. Batch runs also write `backtests/{report_date}_summary_{eval_date}.md`. Prices come from `scripts/fetch_backtest_prices.py` (J-Quants + yfinance for `TYO:`, yfinance otherwise). Verdicts are `ALIGNED` / `MISALIGNED` / `INCONCLUSIVE`. On `MISALIGNED`, the file includes suggested patches for `trading-analysis-jp` or `trading-analysis` (skills are not edited automatically).
+
 ## Pipeline
 
 ```
@@ -113,6 +125,8 @@ mkdir -p ~/.claude/skills/trading-analysis
 cp .claude/skills/trading-analysis/SKILL.md ~/.claude/skills/trading-analysis/
 mkdir -p ~/.claude/skills/trading-analysis-jp
 cp .claude/skills/trading-analysis-jp/SKILL.md ~/.claude/skills/trading-analysis-jp/
+mkdir -p ~/.claude/skills/report-backtest
+cp .claude/skills/report-backtest/SKILL.md ~/.claude/skills/report-backtest/
 ```
 
 Then update the script paths in `~/.claude/skills/trading-analysis/SKILL.md` and `~/.claude/skills/trading-analysis-jp/SKILL.md` to match your local clone path.
