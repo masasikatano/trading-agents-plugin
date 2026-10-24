@@ -28,6 +28,7 @@ from dotenv import load_dotenv
 from market_data_utils import (
     compute_technicals,
     dump_json,
+    fetch_yahoo_news,
     make_indicator_summary,
     make_price_summary,
     normalize_yfinance_news,
@@ -224,8 +225,7 @@ def fetch_technical(ticker: str, as_of: date) -> dict:
 
 def fetch_news(ticker: str, as_of: date) -> dict:
     norm = normalize_ticker(ticker)
-    tk = yf.Ticker(norm["yfinance"])
-    items = normalize_yfinance_news(tk.news)
+    items = normalize_yfinance_news(fetch_yahoo_news(norm["yfinance"]))
     return {
         "ticker": ticker,
         "as_of": as_of.isoformat(),

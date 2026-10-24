@@ -14,6 +14,7 @@ import yfinance as yf
 from market_data_utils import (
     compute_technicals,
     dump_json,
+    fetch_yahoo_news,
     make_indicator_summary,
     make_price_summary,
     normalize_yfinance_news,
@@ -46,8 +47,7 @@ def fetch_technical(ticker: str, as_of: date) -> dict:
 
 def fetch_news(ticker: str, as_of: date) -> dict:
     # yfinance always returns latest news regardless of as_of date
-    tk = yf.Ticker(ticker)
-    items = normalize_yfinance_news(tk.news)
+    items = normalize_yfinance_news(fetch_yahoo_news(ticker))
 
     return {
         "ticker": ticker,
@@ -69,14 +69,14 @@ def fetch_macro(as_of: date) -> dict:
     seen = set()
     for sym, label in macro_tickers.items():
         try:
-            for n in (yf.Ticker(sym).news or [])[:5]:
+            for n in fetch_yahoo_news(sym, count=5):
                 title = n.get("content", {}).get("title", n.get("title", ""))
                 if title and title not in seen:
                     seen.add(title)
                     items.append({
                         "source": label,
                         "title": title,
-                        "summary": n.get("content", {}).get("summary", ""),
+                        "summary": n.get("content", {}).get("summary") or n.get("summary", ""),
                         "publisher": n.get("content", {}).get("provider", {}).get("displayName", ""),
                     })
         except Exception:

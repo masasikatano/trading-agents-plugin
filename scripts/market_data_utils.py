@@ -4,6 +4,7 @@ import json
 import math
 
 import pandas as pd
+import yfinance as yf
 
 
 def safe(val):
@@ -109,14 +110,44 @@ def recent_closes(close, n=10):
     }
 
 
+def fetch_yahoo_news(query: str, count: int = 15) -> list:
+    """Fetch Yahoo Finance news, falling back to the legacy search endpoint.
+
+    yfinance's Ticker.news uses Yahoo's /xhr/ncp endpoint, which currently
+    returns 404 (empty news). The legacy /v1/finance/search endpoint still
+    works and is reachable via yf.Search. For tickers Yahoo's search does not
+    index by symbol (e.g. Tokyo ".T" tickers), fall back to the company name.
+    """
+    try:
+        news = yf.Ticker(query).news
+        if news:
+            return news
+    except Exception:
+        pass
+    try:
+        news = yf.Search(query, news_count=count).news or []
+        if news:
+            return news
+    except Exception:
+        pass
+    try:
+        info = yf.Ticker(query).info or {}
+        name = info.get("shortName") or info.get("longName")
+        if name:
+            return yf.Search(name, news_count=count).news or []
+    except Exception:
+        pass
+    return []
+
+
 def normalize_yfinance_news(news):
     """Normalize yfinance news items to a common schema."""
     items = []
     for n in (news or [])[:15]:
         items.append({
-            "title": n.get("content", {}).get("title", n.get("title", "")),
-            "summary": n.get("content", {}).get("summary", ""),
-            "publisher": n.get("content", {}).get("provider", {}).get("displayName", ""),
+            "title": n.get("content", {}).get("title") or n.get("title", ""),
+            "summary": n.get("content", {}).get("summary") or n.get("summary", ""),
+            "publisher": n.get("content", {}).get("provider", {}).get("displayName") or n.get("publisher", ""),
         })
     return items
 
