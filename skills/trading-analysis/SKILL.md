@@ -4,6 +4,8 @@ description: Multi-agent trading analysis for a stock ticker. Runs technical, ne
 ---
 
 Extract the ticker symbol from $ARGUMENTS (e.g. "NVDA"). If no ticker is provided, ask the user for one before proceeding.
+Also extract an optional second token from $ARGUMENTS as the ENGINE name (e.g. "NVDA Grok" → ENGINE=Grok).
+If no ENGINE token is provided, use the ANALYST_ENGINE environment variable if set; otherwise default to "Kimi".
 
 Set TODAY to the current date in YYYY-MM-DD format.
 
@@ -399,3 +401,16 @@ VERDICT: [2-3 sentences — why the bull or bear case won, how the three risk vi
 ```
 
 Display the full PM decision to the user.
+
+## Phase 6 — Save Report
+
+Save the full analysis (all Phase 1 reports, the bull/bear debate, the 3-way risk
+debate, and the Phase 3–5 outputs) to a file named:
+
+```
+reports/${TODAY}_${TICKER}_${ENGINE}.md
+```
+
+(relative to the project root, e.g. `reports/20261024_NVDA_Kimi.md`). Use the Write
+tool. Include a note in the report if any data source was unavailable and a fallback
+was used. Then tell the user the saved file path.

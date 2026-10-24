@@ -2,9 +2,9 @@
 
 ## 一言で言うと
 
-「株式のティッカーシンボル（例：NVDA）を渡すと、複数の AI エージェントが協力しながら『買う・売る・持つ』の投資判断を出してくれる、Claude Code 用のプラグイン」です。
+「株式のティッカーシンボル（例：NVDA）を渡すと、複数の AI エージェントが協力しながら『買う・売る・持つ』の投資判断を出してくれる、AI コーディングエージェント（Kimi Code / Grok Build）向けスキル」です。
 
-外部の LLM API（OpenAI など）を使わず、Claude Code 自体が備えているマルチエージェント機能だけで動きます。株価データは無料の Yahoo Finance 経由で取得します。
+外部の LLM API（OpenAI など）を使わず、エージェント本体が備えているマルチエージェント機能だけで動きます。株価データは無料の Yahoo Finance 経由で取得します。
 
 ---
 
@@ -14,7 +14,7 @@
 このプロジェクトは、**複数の専門家が同時に分析し、議論し、最後に結論を出す**仕組みを再現しています。
 
 元々は Tauric Research の「TradingAgents」というオープンソースが発想の源です。  
-それを、Claude Code のプラグインとして手軽に使える形にアレンジしたものです。
+それを、Kimi Code や Grok Build などの AI コーディングエージェントで手軽に使える形にアレンジしたものです。
 
 ---
 
@@ -41,7 +41,11 @@ Phase 3: Research Manager（研究責任者）が総合評価
 Phase 4: Trader（トレーダー）が具体的な入場・損切り・サイズを提案
 
 Phase 5: Portfolio Manager（ポートフォリオマネージャー）が最終決定
+
+Phase 6: レポートを reports/{日付}_{ティッカー}_{エンジン名}.md に自動保存
 ```
+
+ファイル名のエンジン名サフィックスは、2 番目の引数で指定するか `ANALYST_ENGINE` 環境変数で上書きできます（デフォルト: `Kimi`）。例: `/trading-analysis NVDA Grok` → `reports/20261024_NVDA_Grok.md`。
 
 合計 **9 体の AI エージェント** が動作します。
 
@@ -95,20 +99,25 @@ Phase 5: Portfolio Manager（ポートフォリオマネージャー）が最終
 
 ## 使い方
 
-### Claude Code プラグインとして使う場合
+### Kimi Code / Grok Build として使う場合
 
-```
-/plugin marketplace add lucemia/trading-agents-plugin
-/plugin install trading-agents-plugin
+このリポジトリをクローンして依存関係を入れるだけです。
+
+```bash
+git clone https://github.com/lucemia/trading-agents-plugin
+cd trading-agents-plugin
+uv sync   # pip install yfinance pandas python-dotenv requests でも可
 ```
 
-インストール後、
+Kimi Code ではプロジェクトの `skills/` ディレクトリがスキルとして自動認識され、プロジェクト内で
 
 ```
 /trading-analysis NVDA
 ```
 
-と打つだけで分析が始まります。
+と打つだけで分析が始まります。完了時にレポートが `reports/{日付}_{ティッカー}_Kimi.md`（エンジン名サフィックス付き）に自動保存されます。Grok など別エンジンで実行する場合は `/trading-analysis NVDA Grok` のように 2 番目の引数を渡すか、`ANALYST_ENGINE` 環境変数を設定してください。
+
+Grok Build など `skills/` を自動認識しないエージェントの場合は、`skills/trading-analysis/SKILL.md` の内容をそのまま指示書（プロンプト）として渡してください。SKILL.md はエージェント種に依存しない手順書なので、同等のパイプラインが動きます。
 
 ### 日本株版 `trading-analysis-jp`
 
@@ -200,16 +209,7 @@ cd trading-agents-plugin
 uv sync   # pip install yfinance pandas python-dotenv requests でも可
 ```
 
-その後、Claude Code の skill ディレクトリにコマンド定義をコピーします。
-
-```bash
-mkdir -p ~/.claude/skills/trading-analysis
-cp .claude/skills/trading-analysis/SKILL.md ~/.claude/skills/trading-analysis/
-mkdir -p ~/.claude/skills/trading-analysis-jp
-cp .claude/skills/trading-analysis-jp/SKILL.md ~/.claude/skills/trading-analysis-jp/
-mkdir -p ~/.claude/skills/report-backtest
-cp .claude/skills/report-backtest/SKILL.md ~/.claude/skills/report-backtest/
-```
+Kimi Code ではプロジェクトの `skills/` がそのまま使えます。他のエージェントに永続的に登録したい場合は、スキル定義をそのエージェントのユーザースコープスキルディレクトリにコピーしてください（Kimi Code の場合は `~/.kimi-code/skills/` 配下）。
 
 **注意：** skill ファイル内の Python スクリプトパスが、自分の環境と一致していることを確認してください。
 
@@ -242,7 +242,7 @@ VERDICT: 強気のフランチャイズ論は弱気のタイミング警戒を�
 
 ### 1. ハードコードされたパス
 
-skill ファイル（`.claude/skills/trading-analysis/SKILL.md` や `skills/trading-analysis/SKILL.md` など）には、作者の PC の絶対パスが埋め込まれていることがあります。
+skill ファイル（`skills/trading-analysis/SKILL.md` など）には、作者の PC の絶対パスが埋め込まれていることがあります。
 
 ```bash
 # 例（これは作者の環境向け）
@@ -287,14 +287,10 @@ trading-agents-plugin/
 │   ├── fetch_jp_market_data.py        # 日本株データ取得（J-Quants + BOJ + MOF + FRED + yfinance）
 │   ├── fetch_backtest_prices.py       # レポート事後検証用の期間 OHLCV
 │   └── market_data_utils.py           # 共有ユーティリティ
-├── .claude/skills/
+├── skills/
 │   ├── trading-analysis/SKILL.md      # 米国株用 skill
 │   ├── trading-analysis-jp/SKILL.md   # 日本株用 skill
 │   └── report-backtest/SKILL.md       # 保存レポートの事後検証
-├── skills/
-│   ├── trading-analysis/SKILL.md
-│   ├── trading-analysis-jp/SKILL.md
-│   └── report-backtest/SKILL.md
 ├── reports/                           # 分析レポート
 │   └── 20260731_TYO6952_Grok.md
 └── backtests/                         # report-backtest の出力
@@ -304,11 +300,12 @@ trading-agents-plugin/
 
 ## まとめ
 
-このプロジェクトは、**1 人の AI ではなく「9 人の専門家チーム」が議論して投資判断を出す仕組み**を、Claude Code プラグインとして実現したものです。
+このプロジェクトは、**1 人の AI ではなく「9 人の専門家チーム」が議論して投資判断を出す仕組み**を、AI コーディングエージェント向けスキルとして実現したものです。
 
 - 入力：ティッカーシンボル（例：NVDA）
 - データ：Yahoo Finance（無料）
 - 処理：テクニカル・ニュース・ファンダ・マクロを並列分析 → Bull/Bear 議論 → 3 方向リスク議論 → 最終判断
 - 出力：BUY / SELL / HOLD、エントリー圏、損切りライン、ポジションサイズ、根拠
+- 保存：完全なレポートが `reports/{日付}_{ティッカー}_{エンジン名}.md` に自動保存される
 
 「AI に投資判断を任せたい」というよりは、「AI を使って構造化された投資検討プロセスを再現する」ツール、と捉えるのが近いです。

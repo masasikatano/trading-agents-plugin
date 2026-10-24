@@ -1,21 +1,18 @@
 # trading-agents-plugin
 
-Multi-agent trading analysis as a Claude Code plugin — powered entirely by your Claude subscription, no external LLM API cost.
+Multi-agent trading analysis skills for AI coding agents — runs on [Kimi Code](https://www.kimi.com/) and [Grok Build](https://grok.com/) with no external LLM API cost (uses the agent's built-in subagent capability).
 
-## Install
+## Setup
 
-```
-/plugin marketplace add lucemia/trading-agents-plugin
-/plugin install trading-agents-plugin
-```
-
-Then install the Python data dependency (fetches market data via yfinance):
+Clone the repo and install the Python data dependency (fetches market data via yfinance):
 
 ```bash
 git clone https://github.com/lucemia/trading-agents-plugin
 cd trading-agents-plugin
 uv sync   # or: pip install yfinance pandas
 ```
+
+The `skills/` directory is read automatically when you open this project in Kimi Code (project-scope skills). For other agents (e.g. Grok Build), point the agent at `skills/trading-analysis/SKILL.md` (and the `-jp` variant) as its instruction set — the skill files are agent-agnostic plain Markdown.
 
 ## Usage
 
@@ -24,6 +21,11 @@ uv sync   # or: pip install yfinance pandas
 /trading-analysis GOOG
 /trading-analysis SOXL
 ```
+
+The full analysis report is saved automatically to `reports/{date}_{ticker}_{engine}.md`
+(e.g. `reports/20261024_NVDA_Kimi.md`). To override the engine suffix, pass it as a
+second argument (`/trading-analysis NVDA Grok`) or set the `ANALYST_ENGINE` environment
+variable; it defaults to `Kimi`.
 
 ### Japan equities (`trading-analysis-jp`)
 
@@ -62,9 +64,10 @@ Phase 2 (sequential):  Bull → Bear rebuts Bull directly → Aggressive / Conse
 Phase 3:               Research Manager synthesizes all three voices
 Phase 4:               Trader sets entry / stop / size anchored to technicals
 Phase 5:               Portfolio Manager → final BUY / SELL / HOLD
+Phase 6:               Full report saved to reports/{date}_{ticker}_{engine}.md
 ```
 
-9 subagents total. Each phase uses Claude Code's native `Agent` tool.
+9 subagents total. Each phase spawns subagents via the host agent's built-in subagent/task tool.
 
 Data sources:
 - US tickers: [yfinance](https://github.com/ranaroussi/yfinance) only — no API key required.
@@ -110,30 +113,12 @@ VERDICT: Bull wins on fundamentals — no operational weakness identified. The 3
 
 ## Requirements
 
-- [Claude Code](https://claude.ai/code) with an active subscription
+- An agent that supports subagents (e.g. [Kimi Code](https://www.kimi.com/) or [Grok Build](https://grok.com/))
 - Python 3.10+, [uv](https://github.com/astral-sh/uv) (or pip)
-
-## Manual install (alternative)
-
-If you prefer not to use the plugin system:
-
-```bash
-git clone https://github.com/lucemia/trading-agents-plugin
-cd trading-agents-plugin
-uv sync
-mkdir -p ~/.claude/skills/trading-analysis
-cp .claude/skills/trading-analysis/SKILL.md ~/.claude/skills/trading-analysis/
-mkdir -p ~/.claude/skills/trading-analysis-jp
-cp .claude/skills/trading-analysis-jp/SKILL.md ~/.claude/skills/trading-analysis-jp/
-mkdir -p ~/.claude/skills/report-backtest
-cp .claude/skills/report-backtest/SKILL.md ~/.claude/skills/report-backtest/
-```
-
-Then update the script paths in `~/.claude/skills/trading-analysis/SKILL.md` and `~/.claude/skills/trading-analysis-jp/SKILL.md` to match your local clone path.
 
 ## Inspiration
 
-Inspired by [TradingAgents](https://github.com/TauricResearch/TradingAgents) — a multi-agent LLM trading framework by Tauric Research. This project adapts their analyst pipeline design as a native Claude Code plugin, replacing the LangGraph/OpenAI stack with Claude's built-in `Agent` tool and yfinance for free market data.
+Inspired by [TradingAgents](https://github.com/TauricResearch/TradingAgents) — a multi-agent LLM trading framework by Tauric Research. This project adapts their analyst pipeline design as agent-agnostic Markdown skills, replacing the LangGraph/OpenAI stack with the host agent's built-in subagent capability and yfinance for free market data.
 
 ## License
 

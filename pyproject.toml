@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "trading-agents-plugin"
 version = "0.1.0"
-description = "Multi-agent trading analysis as a Claude Code plugin — no external LLM API cost"
+description = "Multi-agent trading analysis skills for AI coding agents (Kimi Code / Grok Build) — no external LLM API cost"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
