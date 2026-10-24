@@ -44,6 +44,21 @@ JQUANTS_API_KEY=   # issued from the J-Quants API v2 dashboard
 FRED_API_KEY=      # optional, used for Japanese-rate cross-check
 ```
 
+### US Treasury bond ETFs (`bond-etf-analysis`)
+
+For US Treasury-bond ETFs (EDV, TLT, SPTL, GOVT, VGLT, ...):
+
+```
+/bond-etf-analysis TLT
+/bond-etf-analysis EDV Grok
+```
+
+This uses `scripts/fetch_bond_etf_data.py`, which combines yfinance (prices, fund data, dividends, news) and the FRED API (Treasury curve: DGS2/DGS10/DGS30/T10Y2Y/DFII10). The FRED key is optional — without it the rates fetch falls back to yfinance (^TNX/^TYX) with a warning.
+
+```bash
+FRED_API_KEY=      # optional, used for Treasury curve data (DGS2/DGS10/DGS30/T10Y2Y/DFII10)
+```
+
 ### Report backtest (`report-backtest`)
 
 After at least 7 calendar days, check what would have happened if you followed a saved analysis report (`SIGNAL` / `ENTRY` / `STOP`). Does not re-run the analysis pipeline.
@@ -71,6 +86,7 @@ Phase 6:               Full report saved to reports/{date}_{ticker}_{engine}.md
 
 Data sources:
 - US tickers: [yfinance](https://github.com/ranaroussi/yfinance) only — no API key required.
+- Bond ETFs: yfinance (prices, fund data, dividends, news) + FRED API for the Treasury curve (optional key).
 - Japan tickers: J-Quants API v2 (prices/financials), yfinance (news, indices, recent-price gap fill), BOJ time-series API, Japanese MOF JGB CSV, and optional FRED API for cross-checking Japanese rates.
 
 ## What each analyst covers

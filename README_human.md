@@ -185,6 +185,25 @@ uv run python scripts/fetch_jp_market_data.py --ticker TYO:6702 --type technical
 
 `--verbose` を付けない場合は従来通り JSON のみが stdout に出力されます。
 
+### 米国債ETF版 `bond-etf-analysis`
+
+米国債ETF（EDV / TLT / SPTL / GOVT / VGLT など）を分析する場合は以下のように入力してください。
+
+```
+/bond-etf-analysis TLT
+/bond-etf-analysis EDV Grok
+```
+
+内部的には `scripts/fetch_bond_etf_data.py` が動作し、yfinance（価格・ファンドデータ・分配金・ニュース）+ FRED API（DGS2/DGS10/DGS30/T10Y2Y/DFII10 の米国債カーブ）を組み合わせてデータを取得します。
+
+環境変数:
+
+```bash
+FRED_API_KEY=      # 任意（米国債カーブ取得用。未設定時は yfinance の ^TNX/^TYX のみで動作し警告が出ます）
+```
+
+レポートの保存先・命名規則（`reports/{日付}_{ティッカー}_{エンジン名}.md`）・Phase 4/5 の出力フォーマットは `trading-analysis` と同じで、`report-backtest` でもそのまま検証できます。
+
 ### レポートの事後検証 `report-backtest`
 
 保存した分析レポートを、レポート日から **7 暦日以上** 経ってから検証します。「当時の SIGNAL / ENTRY / STOP を信じて執行していたらどうなっていたか」を価格で確認します。分析パイプライン（`trading-analysis` / `trading-analysis-jp`）は再実行しません。
@@ -284,12 +303,14 @@ trading-agents-plugin/
 ├── uv.lock                            # 依存関係ロックファイル
 ├── scripts/
 │   ├── fetch_market_data.py           # 米国株データ取得（Yahoo Finance）
+│   ├── fetch_bond_etf_data.py         # 米国債ETFデータ取得（yfinance + FRED）
 │   ├── fetch_jp_market_data.py        # 日本株データ取得（J-Quants + BOJ + MOF + FRED + yfinance）
 │   ├── fetch_backtest_prices.py       # レポート事後検証用の期間 OHLCV
 │   └── market_data_utils.py           # 共有ユーティリティ
 ├── skills/
 │   ├── trading-analysis/SKILL.md      # 米国株用 skill
 │   ├── trading-analysis-jp/SKILL.md   # 日本株用 skill
+│   ├── bond-etf-analysis/SKILL.md     # 米国債ETF用 skill
 │   └── report-backtest/SKILL.md       # 保存レポートの事後検証
 ├── reports/                           # 分析レポート
 │   └── 20260731_TYO6952_Grok.md
