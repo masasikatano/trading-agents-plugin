@@ -182,6 +182,16 @@ VERDICT: Bull wins on fundamentals — no operational weakness identified. The 3
 - An agent that supports subagents (e.g. Muse Code, [Kimi Code](https://www.kimi.com/) or [Grok Build](https://grok.com/))
 - Python 3.10+, [uv](https://github.com/astral-sh/uv) (or pip)
 
+## Notes for editing agents
+
+- `AGENTS.md` is a symlink to `README.md`; `.agents/skills` is a symlink to
+  `.claude/skills`. Always edit the real files (`README.md`,
+  `.claude/skills/...`), never through the symlink path.
+- `skills/<name>/SKILL.md` and `.claude/skills/<name>/SKILL.md` are hardlinks to
+  the same file — editing either path updates both. (`skills/` only carries the
+  US/JP/bond/backtest skills; inverse-us/leverage-us exist only under
+  `.claude/skills/`.)
+
 ## Inspiration
 
 Inspired by [TradingAgents](https://github.com/TauricResearch/TradingAgents) — a multi-agent LLM trading framework by Tauric Research. This project adapts their analyst pipeline design as agent-agnostic Markdown skills, replacing the LangGraph/OpenAI stack with the host agent's built-in subagent capability and yfinance for free market data.
