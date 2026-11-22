@@ -1,7 +1,7 @@
 ---
 name: report-backtest
 description: >
-  Backtest a saved trading-analysis report after at least 7 calendar days.
+  Backtest a saved trading-analysis-us report after at least 7 calendar days.
   Checks what would have happened if the SIGNAL/ENTRY/STOP were followed.
   Writes markdown under backtests/. Use when the user runs /report-backtest,
   asks to verify past reports, or mentions report backtest / 事後検証.
@@ -13,7 +13,7 @@ description: >
 - 日付プレフィックス（例: `20260731`）→ `reports/{date}_*.md` を一括
 - `--eval YYYY-MM-DD` があれば評価日。なければ今日
 
-評価日はレポート日の **7 暦日後以降** のみ。満たさないファイルはスキップし理由を出す。trading-analysis パイプラインは再実行しない。価格は推測せずスクリプト JSON のみ使う。
+評価日はレポート日の **7 暦日後以降** のみ。満たさないファイルはスキップし理由を出す。trading-analysis-us パイプラインは再実行しない。価格は推測せずスクリプト JSON のみ使う。
 
 リポジトリルート: `${CLAUDE_PLUGIN_ROOT}`
 
@@ -65,7 +65,7 @@ PnL% = (出口 − 執行) / 執行 × 100。ロング。ショートは符号�
 `MISALIGNED` のときだけ、分析スキルをこのターンでは編集せず、バックテスト Markdown に修正案を追記する。対象スキル:
 
 - ティッカーが `TYO:` / `.T` / 数字 → `skills/trading-analysis-jp/SKILL.md`
-- それ以外 → `skills/trading-analysis/SKILL.md`
+- それ以外 → `skills/trading-analysis-us/SKILL.md`
 
 レポートのどの Phase のシグナル・論点が価格と食い違ったかを特定し、**その Phase のプロンプトに入れる具体的な変更**を書く。一般論（「もっと慎重に」）は禁止。各項目は:
 

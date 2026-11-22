@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 Usage:
-  python scripts/fetch_market_data.py --ticker NVDA --type technical --date 2026-05-02
-  python scripts/fetch_market_data.py --ticker NVDA --type news --date 2026-05-02
-  python scripts/fetch_market_data.py --ticker NVDA --type fundamentals --date 2026-05-02
+  python scripts/fetch_us_market_data.py --ticker NVDA --type technical --date 2026-05-02
+  python scripts/fetch_us_market_data.py --ticker NVDA --type news --date 2026-05-02
+  python scripts/fetch_us_market_data.py --ticker NVDA --type fundamentals --date 2026-05-02
 """
 import argparse
 import sys

@@ -15,19 +15,21 @@ uv sync   # or: pip install yfinance pandas
 > Run scripts via `uv run --project . python scripts/...` (or `.venv/bin/python ...`).
 > Bare `python` / `python3` does not have yfinance installed.
 
-The `skills/` directory is read automatically when you open this project in Kimi Code (project-scope skills) or when installed as a Muse Code plugin (see `.claude-plugin/plugin.json`; slash commands in `commands/`). For other agents (e.g. Grok Build), point the agent at `skills/trading-analysis/SKILL.md` (and the `-jp` variant) as its instruction set — the skill files are agent-agnostic plain Markdown.
+The `skills/` directory is read automatically when you open this project in Kimi Code (project-scope skills) or when installed as a Muse Code plugin (see `.claude-plugin/plugin.json`; slash commands in `commands/`). For other agents (e.g. Grok Build), point the agent at `skills/trading-analysis-us/SKILL.md` (and the `-jp` variant) as its instruction set — the skill files are agent-agnostic plain Markdown.
 
 ## Usage
 
+Naming convention: `{asset}-analysis-{market}` — market suffix `-us` / `-jp` for single-market commands, omitted only for multi-market (`bond-etf-analysis`) and utilities (`report-backtest`).
+
 ```
-/trading-analysis NVDA
-/trading-analysis GOOG
-/trading-analysis SOXL
+/trading-analysis-us NVDA
+/trading-analysis-us GOOG
+/trading-analysis-us SOXL
 ```
 
 The full analysis report is saved automatically to `reports/{date}_{ticker}_{engine}.md`
 (e.g. `reports/20261024_NVDA_Kimi.md`). To override the engine suffix, pass it as a
-second argument (`/trading-analysis NVDA Grok`) or set the `ANALYST_ENGINE` environment
+second argument (`/trading-analysis-us NVDA Grok`) or set the `ANALYST_ENGINE` environment
 variable; it defaults to `Claude`.
 
 ### Japan equities (`trading-analysis-jp`)
@@ -46,6 +48,17 @@ Required environment variables:
 JQUANTS_API_KEY=   # issued from the J-Quants API v2 dashboard
 FRED_API_KEY=      # optional, used for Japanese-rate cross-check
 ```
+
+### Japan inverse index ETFs (`inverse-index-etf-jp`)
+
+For TSE-listed inverse / double-inverse index ETFs (1360 N225 -2x, 1356 TOPIX -2x, 1366 double-inverse, 1456 inverse):
+
+```
+/inverse-index-etf-jp 1360
+/inverse-index-etf-jp 1356 Grok
+```
+
+This uses `scripts/fetch_inverse_index_etf_data.py` (yfinance only, no API key): ETF technicals, underlying index trend + 20-day tracking check, cost/structure (expense, leverage decay), news, and macro. Individual-stock fundamentals are intentionally excluded; short-term trade / hedge use is assumed.
 
 ### US Treasury bond ETFs (`bond-etf-analysis`)
 
@@ -79,7 +92,7 @@ After at least 7 calendar days, check what would have happened if you followed a
 /report-backtest 20260731
 ```
 
-Writes `backtests/{report_date}_{ticker}_{eval_date}.md`. Batch runs also write `backtests/{report_date}_summary_{eval_date}.md`. Prices come from `scripts/fetch_backtest_prices.py` (J-Quants + yfinance for `TYO:`, yfinance otherwise). Verdicts are `ALIGNED` / `MISALIGNED` / `INCONCLUSIVE`. On `MISALIGNED`, the file includes suggested patches for `trading-analysis-jp` or `trading-analysis` (skills are not edited automatically).
+Writes `backtests/{report_date}_{ticker}_{eval_date}.md`. Batch runs also write `backtests/{report_date}_summary_{eval_date}.md`. Prices come from `scripts/fetch_backtest_prices.py` (J-Quants + yfinance for `TYO:`, yfinance otherwise). Verdicts are `ALIGNED` / `MISALIGNED` / `INCONCLUSIVE`. On `MISALIGNED`, the file includes suggested patches for `trading-analysis-jp` or `trading-analysis-us` (skills are not edited automatically).
 
 ## Pipeline
 

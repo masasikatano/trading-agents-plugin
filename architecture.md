@@ -7,7 +7,7 @@ the instruction set (skills), entry points (commands), and data fetchers (script
 ## Layout
 
 - `skills/<name>/SKILL.md` — single source of truth for each analysis pipeline
-  (trading-analysis, trading-analysis-jp, bond-etf-analysis, report-backtest).
+  (trading-analysis-us, trading-analysis-jp, bond-etf-analysis, inverse-index-etf-jp, report-backtest).
 - `.claude/skills/<name>` — symlinks to `skills/<name>` (Muse Code project skills).
 - `.agents/skills`, `.kimi/skills` — symlinks to `.claude/skills` (shared content).
 - `commands/*.md` — slash-command definitions (plugin install path).
@@ -17,7 +17,7 @@ the instruction set (skills), entry points (commands), and data fetchers (script
 - `reports/` — generated analysis reports `{date}_{ticker}_{engine}.md`.
 - `backtests/` — generated backtest reports.
 
-## Pipeline (skills/trading-analysis)
+## Pipeline (skills/trading-analysis-us)
 
 ```
 Phase 1 (parallel subagents): Technical + News + Fundamentals + Macro

@@ -1,5 +1,5 @@
 ---
-name: trading-analysis
+name: trading-analysis-us
 description: Multi-agent trading analysis for a stock ticker. Runs technical, news, fundamentals, and macro analysts in parallel, then an adversarial bull/bear debate, then a 3-way risk debate (Aggressive/Conservative/Neutral), then Research Manager, Trader, and Portfolio Manager to produce a final BUY/SELL/HOLD decision with entry, stop, and sizing.
 ---
 
@@ -19,7 +19,7 @@ You are a technical analyst for $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_market_data.py --ticker $TICKER --type technical --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_us_market_data.py --ticker $TICKER --type technical --date $TODAY
 ```
 
 Write a technical analysis report (150-200 words) covering:
@@ -37,7 +37,7 @@ You are a news and sentiment analyst for $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_market_data.py --ticker $TICKER --type news --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_us_market_data.py --ticker $TICKER --type news --date $TODAY
 ```
 
 Write a sentiment report (150-200 words) covering:
@@ -56,7 +56,7 @@ You are a fundamentals analyst for $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_market_data.py --ticker $TICKER --type fundamentals --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_us_market_data.py --ticker $TICKER --type fundamentals --date $TODAY
 ```
 
 Write a fundamentals report (200-250 words) covering:
@@ -79,7 +79,7 @@ You are a macro analyst providing global market context as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_market_data.py --ticker MACRO --type macro --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_us_market_data.py --ticker MACRO --type macro --date $TODAY
 ```
 
 Write a macro context report (100-150 words) covering:
