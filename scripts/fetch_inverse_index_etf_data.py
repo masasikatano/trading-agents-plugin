@@ -145,7 +145,7 @@ def fetch_underlying(ticker: str, as_of: date) -> dict:
     leverage = facts.get("leverage")
     u_symbols = UNDERLYING_YF.get(underlying, ["^N225"])
     end = as_of + timedelta(days=1)
-    start = as_of - timedelta(days=120)
+    start = as_of - timedelta(days=520)
     u_ticker, u_hist = _yf_history_first(u_symbols, start, end)
     e_hist = _yf_history(resolve_ticker(ticker), start, end)
     out: dict = {
@@ -163,6 +163,11 @@ def fetch_underlying(ticker: str, as_of: date) -> dict:
         return out
     u_close = u_hist["Close"].dropna()
     out["underlying_price"] = make_price_summary(u_close)
+    if "Volume" in u_hist.columns:
+        vol = u_hist["Volume"].dropna()
+        if not vol.empty:
+            out["underlying_price"]["volume_last"] = safe(vol.iloc[-1])
+            out["underlying_price"]["volume_avg_20"] = safe(vol.tail(20).mean())
     out["underlying_indicators"] = make_indicator_summary(compute_technicals(u_hist))
     out["underlying_recent_closes"] = recent_closes(u_close)
     out["underlying_trend"] = {
@@ -197,11 +202,25 @@ def fetch_cost(ticker: str, as_of: date) -> dict:
         info = yf.Ticker(resolve_ticker(ticker)).info or {}
     except Exception:
         info = {}
-    out["expense_ratio_pct"] = info.get("annualReportExpenseRatio",
-                                        (facts or {}).get("expense_ratio"))
+    fallback_expense = (facts or {}).get("expense_ratio")
+    if info.get("annualReportExpenseRatio") is not None:
+        out["expense_ratio_pct"] = info.get("annualReportExpenseRatio")
+        out["expense_ratio_source"] = "yfinance"
+    else:
+        out["expense_ratio_pct"] = fallback_expense
+        out["expense_ratio_source"] = "fallback_static"
     out["aum"] = info.get("totalAssets")
-    out["nav_vs_price"] = {"previousClose": safe(info.get("previousClose")),
-                           "nav": safe(info.get("navPrice"))}
+    e_hist = _yf_history(resolve_ticker(ticker), as_of - timedelta(days=10), as_of + timedelta(days=1))
+    price_last = safe(e_hist["Close"].dropna().iloc[-1]) if not e_hist.empty and "Close" in e_hist.columns and not e_hist["Close"].dropna().empty else None
+    out["price_last"] = price_last
+    prev_close = safe(info.get("previousClose"))
+    nav = safe(info.get("navPrice"))
+    stale = prev_close is not None and price_last is not None and abs(prev_close - price_last) / price_last > 0.02
+    out["nav_vs_price"] = {"previousClose": prev_close,
+                           "nav": nav,
+                           "price_last_history": price_last,
+                           "stale": stale,
+                           "nav_status": "STALE_OR_MISSING" if (nav is None or stale) else "OK"}
     out["yield_ttm_pct"] = safe((info.get("trailingAnnualDividendYield") or 0) * 100)
     if (facts or {}).get("leverage") == -2:
         out["decay_warning"] = ("日次2倍リバランス型はボックス相場で減価する。"
@@ -214,17 +233,26 @@ def fetch_cost(ticker: str, as_of: date) -> dict:
 def fetch_news(ticker: str, as_of: date) -> dict:
     bare = display_ticker(ticker)
     facts = ETF_STATIC_FACTS.get(bare, {})
-    queries = [f"{bare} ETF", "日経平均 急落 反発" if facts.get("underlying", "N225") == "N225" else "TOPIX 急落 反発"]
+    if facts.get("underlying", "N225") == "N225":
+        queries = ["^N225", "1321.T", f"{bare}.T"]
+    else:
+        queries = ["^TOPX", "1306.T", f"{bare}.T"]
+    fallback_queries = ["Nikkei 225 selloff"]
     seen: dict = {}
     for q in queries:
         for item in normalize_yfinance_news(fetch_yahoo_news(q, count=10)):
             seen[item.get("link") or item.get("title")] = item
+    if not seen:
+        for q in fallback_queries:
+            for item in normalize_yfinance_news(fetch_yahoo_news(q, count=10)):
+                seen[item.get("link") or item.get("title")] = item
     items = list(seen.values())[:15]
     kw = [k for k in NEWS_KEYWORDS if any(
         k.lower() in ((i.get("title") or "") + (i.get("summary") or "")).lower() for i in items)]
     return {
         "ticker": bare,
         "as_of": as_of.isoformat(),
+        "status": "OK" if items else "NO_COVERAGE",
         "news": items,
         "direct_coverage_count": sum(1 for i in items if bare in (i.get("title") or "")),
         "matched_keywords": kw,
