@@ -64,6 +64,7 @@ Write a fundamentals report (200-250 words) covering:
 - Quality: gross/operating margins, ROE, free cash flow
 - Balance sheet: total debt, total cash, D/E ratio (totalDebt / (totalDebt + stockholders equity)), current ratio
 - Risk metrics: beta, short ratio
+- Short interest: shares short, short % of float, days to cover (shortRatio), and the month-over-month change in shares short — always cite dateShortInterest and treat stale readings as lagging, not current
 - Quarterly financials: cite 1-2 key line items from quarterly_income_stmt and quarterly_balance_sheet (e.g. quarterly revenue, net income, total assets)
 - Analyst consensus: mean recommendation (1=Strong Buy, 5=Sell), price target vs current price
 
@@ -237,7 +238,7 @@ BEAR ARGUMENT:
 AGGRESSIVE RISK ANALYST'S ARGUMENT (respond to this directly):
 [insert full aggressive risk report from Subagent 7a]
 
-Write 150-200 words. Be specific — cite numbers (beta, D/E, short ratio, yield levels).
+Write 150-200 words. Be specific — cite numbers (beta, D/E, short ratio, short % of float, yield levels).
 
 Do not simply side with the Bear. Raise risks that neither the Bull nor the Aggressive Risk Analyst addressed.
 
@@ -415,5 +416,3 @@ reports/${TODAY}_${TICKER}_${ENGINE}.md
 tool. Include a note in the report if any data source was unavailable and a fallback
 was used. Then tell the user the saved file path.
 
-## Appendix: short_interest (fundamentals.short_interest, yfinance info-derived)
-- Use `short_ratio_days_to_cover`, `short_percent_of_float`, `shares_short` when present; nulls mean unavailable — analyze on available indicators only.

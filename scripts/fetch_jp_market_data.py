@@ -331,7 +331,7 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
         if isinstance(v, float):
             yf_data[k] = safe(v)
 
-    sp = _fetch_short_positioning(code)
+    sp = _fetch_short_positioning(code, as_of, info)
 
     return {
         "ticker": ticker,
@@ -342,78 +342,171 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
     }
 
 
-def _fetch_short_positioning(code: str) -> dict:
-    """Short-sale-report + margin-interest (max 2 J-Quants calls), per-call isolation.
+def _short_reason(exc: Exception) -> str:
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if status == 403:
+        return "plan_or_permission"
+    if status is not None:
+        return f"http_{status}"
+    return "error"
 
-    Ratios are multiplied by 100 BEFORE safe() rounding. Groups by CalcDate.
-    Unavailable endpoints degrade to no_records with a notes line.
-    """
-    notes: list[str] = []
-    short_sales: list[dict] = []
+
+def _fetch_short_positioning(code: str, as_of: date, yf_info: dict) -> dict:
+    """Short positioning: short-sale-report + margin-interest + yfinance_short."""
+    notes = [
+        "short_sale_report covers only positions reported at >=0.5% of shares outstanding; empty does not mean zero short interest."
+    ]
+    as_of_s = as_of.isoformat()
+    short_block: dict = {"available": False, "reason": None}
+    margin_block: dict = {"available": False, "reason": None}
+
     try:
-        payload = _jquants_get("/markets/short_selling", {"code": code})
-        recs = payload.get("short_selling") or payload.get("data") or []
-        grouped: dict[str, dict] = {}
-        for r in recs:
-            d = str(r.get("CalcDate") or r.get("Date") or "")
-            g = grouped.setdefault(d, {"date": d, "records": 0,
-                                       "short_volume": 0, "short_value": 0.0})
-            g["records"] += 1
-            try:
-                g["short_volume"] += int(r.get("ShortVolume") or 0)
-            except Exception:
-                pass
-            try:
-                g["short_value"] += float(r.get("ShortValue") or 0)
-            except Exception:
-                pass
-        short_sales = sorted(grouped.values(), key=lambda g: g["date"], reverse=True)[:5]
+        payload = _jquants_get("/markets/short-sale-report", {
+            "code": code,
+            "disc_date_from": (as_of - timedelta(days=90)).isoformat(),
+            "disc_date_to": as_of_s,
+        })
+        recs = payload.get("data") or []
+        rows = [r for r in recs
+                if str(r.get("DiscDate", ""))[:10] <= as_of_s
+                and str(r.get("CalcDate", ""))[:10] <= as_of_s]
+        groups: dict[str, list[dict]] = {}
+        for r in rows:
+            groups.setdefault(str(r.get("CalcDate"))[:10], []).append(r)
+        if not groups:
+            short_block = {"available": False, "reason": "no_records"}
+        else:
+            ordered = sorted(groups.keys(), reverse=True)
+            latest, prev = ordered[0], ordered[1] if len(ordered) > 1 else None
+
+            def _aggregate(key: str) -> tuple[int, int, float, str]:
+                seen: dict[str, dict] = {}
+                for r in groups[key]:
+                    seen[str(r.get("SSName"))] = r
+                uniq = list(seen.values())
+                shares = sum(int(r.get("ShrtPosShares") or 0) for r in uniq)
+                ratio = sum(float(r.get("ShrtPosToSO") or 0) for r in uniq)
+                disc = max(str(r.get("DiscDate"))[:10] for r in uniq)
+                return len(uniq), shares, ratio, disc
+
+            n, shares, ratio, disc = _aggregate(latest)
+            total_ratio_pct = safe(ratio * 100)
+            short_block = {
+                "available": True, "reason": None,
+                "latest_calc_date": latest, "latest_disc_date": disc,
+                "reporters_count": n, "total_shares": shares,
+                "total_ratio_pct": total_ratio_pct,
+                "prev_calc_date": None, "prev_total_ratio_pct": None,
+                "change_pp": None,
+            }
+            if prev is not None:
+                _, _, pratio, _ = _aggregate(prev)
+                prev_pct = safe(pratio * 100)
+                short_block["prev_calc_date"] = prev
+                short_block["prev_total_ratio_pct"] = prev_pct
+                if total_ratio_pct is not None and prev_pct is not None:
+                    short_block["change_pp"] = safe(total_ratio_pct - prev_pct)
     except Exception as exc:
-        notes.append(f"short_sale_report unavailable: {type(exc).__name__}")
+        short_block = {"available": False, "reason": _short_reason(exc),
+                       "detail": type(exc).__name__}
 
-    margin: list[dict] = []
     try:
-        payload = _jquants_get("/markets/margin_interest", {"code": code})
-        recs = payload.get("margin_interest") or payload.get("data") or []
-        grouped2: dict[str, dict] = {}
-        for r in recs:
-            d = str(r.get("CalcDate") or r.get("Date") or "")
-            g = grouped2.setdefault(d, {"date": d})
-            for k in ("ShortMargin", "LongMargin", "ShortLoan", "Ratio"):
-                if r.get(k) is not None:
-                    g[k] = r.get(k)
-            if g.get("Ratio") is not None:
+        payload = _jquants_get("/markets/margin-interest", {
+            "code": code,
+            "from": (as_of - timedelta(days=45)).isoformat(),
+            "to": as_of_s,
+        })
+        recs = [r for r in (payload.get("data") or [])
+                if str(r.get("Date", ""))[:10] <= as_of_s]
+        recs.sort(key=lambda r: str(r.get("Date")), reverse=True)
+        if not recs:
+            margin_block = {"available": False, "reason": "no_records"}
+        else:
+            cur = recs[0]
+            prev = next((r for r in recs[1:]
+                         if str(r.get("Date")) != str(cur.get("Date"))), None)
+            sv, lv = cur.get("ShrtVol"), cur.get("LongVol")
+
+            def _pct(nw, old) -> float | None:
                 try:
-                    g["short_ratio_pct"] = safe(float(g["Ratio"]) * 100)
+                    if nw is None or old in (None, 0):
+                        return None
+                    return safe((float(nw) / float(old) - 1) * 100)
                 except Exception:
-                    pass
-        margin = sorted(grouped2.values(), key=lambda g: g["date"], reverse=True)[:5]
-    except Exception as exc:
-        notes.append(f"margin_interest unavailable: {type(exc).__name__}")
+                    return None
 
-    yf_short: dict = {}
+            margin_block = {
+                "available": True, "reason": None,
+                "date": str(cur.get("Date"))[:10],
+                "pub_date": (str(cur.get("PubDate"))[:10]
+                               if cur.get("PubDate") else None),
+                "iss_type": cur.get("IssType"),
+                "short_vol": sv, "long_vol": lv,
+                "long_short_ratio": (safe(float(lv) / float(sv))
+                                     if isinstance(sv, (int, float))
+                                     and isinstance(lv, (int, float))
+                                     and float(sv) != 0 else None),
+                "prev_date": (str(prev.get("Date"))[:10] if prev else None),
+                "short_vol_change_pct": _pct(sv, prev.get("ShrtVol")) if prev else None,
+                "long_vol_change_pct": _pct(lv, prev.get("LongVol")) if prev else None,
+                "short_val": cur.get("ShrtVal"),
+                "long_val": cur.get("LongVal"),
+            }
+    except Exception as exc:
+        margin_block = {"available": False, "reason": _short_reason(exc),
+                        "detail": type(exc).__name__}
+
+    yf_short: dict = {"available": False, "reason": "no_records"}
     try:
-        import yfinance as _yf
-        _info = _yf.Ticker(f"{code}.T").info or {}
-        for k in ("shortRatio", "shortPercentOfFloat", "sharesShort",
-                  "floatShares", "sharesOutstanding"):
-            yf_short[k] = _info.get(k)
-        if isinstance(yf_short.get("shortPercentOfFloat"), (int, float)):
-            yf_short["short_percent_of_float_pct"] = safe(
-                float(yf_short["shortPercentOfFloat"]) * 100)
-    except Exception as exc:
-        notes.append(f"yfinance_short unavailable: {type(exc).__name__}")
+        info = yf_info or {}
+        ss = info.get("sharesShort")
+        if ss is not None:
+            spm = info.get("sharesShortPriorMonth")
+            spf = info.get("shortPercentOfFloat")
+            spso = info.get("sharesPercentSharesOut")
 
-    no_records = not short_sales and not margin
-    if no_records and not notes:
-        notes.append("no short-positioning records on current plan")
-    notes.append("short_positioning may be unavailable on free plan; analyze on available indicators only")
+            from datetime import timezone as _tz
+
+            def _ep(v):
+                try:
+                    if v is None:
+                        return None
+                    return datetime.fromtimestamp(
+                        float(v), tz=_tz.utc).date().isoformat()
+                except Exception:
+                    return None
+
+            yf_short = {
+                "available": True, "reason": None,
+                "shares_short": ss,
+                "shares_short_prior_month": spm,
+                "shares_short_change_pct": (
+                    safe(float(ss) / float(spm) * 100 - 100)
+                    if isinstance(spm, (int, float)) and float(spm) != 0
+                    else None),
+                "short_percent_of_float_pct": (
+                    safe(float(spf) * 100)
+                    if isinstance(spf, (int, float)) else None),
+                "shares_percent_shares_out_pct": (
+                    safe(float(spso) * 100)
+                    if isinstance(spso, (int, float)) else None),
+                "short_ratio_days_to_cover": info.get("shortRatio"),
+                "float_shares": info.get("floatShares"),
+                "shares_outstanding": info.get("sharesOutstanding"),
+                "date_short_interest": _ep(info.get("dateShortInterest")),
+                "shares_short_previous_month_date": _ep(
+                    info.get("sharesShortPreviousMonthDate")),
+                "source": "yfinance_info",
+            }
+    except Exception as exc:
+        yf_short = {"available": False, "reason": "error",
+                    "detail": type(exc).__name__}
+
     return {
-        "short_sale_report": short_sales,
-        "margin_interest": margin,
+        "short_sale_report": short_block,
+        "margin_interest": margin_block,
         "yfinance_short": yf_short,
-        "no_records": no_records,
-        "notes": "; ".join(notes),
+        "notes": notes,
     }
 
 
@@ -731,12 +824,18 @@ def _print_fundamentals_summary(result: dict):
     print(f"  P/E     : {_fmt(yf.get('trailingPE'))}", file=sys.stderr)
     print(f"  P/B     : {_fmt(yf.get('priceToBook'))}", file=sys.stderr)
     print(f"  配当利回: {_fmt(yf.get('dividendYield'))} %", file=sys.stderr)
-    sp = result.get("short_positioning", {})
-    if sp.get("no_records"):
-        print(f"  空売り残: なし ({sp.get('notes', '')[:80]})", file=sys.stderr)
-    else:
-        print(f"  空売り残: {len(sp.get('short_sale_report', []))}日分/"
-              f"信用残{len(sp.get('margin_interest', []))}日分", file=sys.stderr)
+    sp = result.get("short_positioning", {}) or {}
+    ssr = sp.get("short_sale_report", {}) or {}
+    if ssr.get("available"):
+        print(f"  空売り残高報告: 合計 {ssr.get('total_ratio_pct')} %"
+              f"（{ssr.get('reporters_count')}主体、"
+              f"計算日 {ssr.get('latest_calc_date')}）", file=sys.stderr)
+    mi = sp.get("margin_interest", {}) or {}
+    if mi.get("available"):
+        print(f"  信用残高    : 売残 {mi.get('short_vol')}株 / "
+              f"買残 {mi.get('long_vol')}株"
+              f"（倍率 {mi.get('long_short_ratio')}、{mi.get('date')}）",
+              file=sys.stderr)
 
 
 def _print_news_summary(result: dict):

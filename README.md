@@ -87,7 +87,7 @@ Phase 6:               Full report saved to reports/{date}_{ticker}_{engine}.md
 Data sources:
 - US tickers: [yfinance](https://github.com/ranaroussi/yfinance) only — no API key required.
 - Bond ETFs: yfinance (prices, fund data, dividends, news) + FRED API for the Treasury curve (optional key).
-- Japan tickers: J-Quants API v2 (prices/financials), yfinance (news, indices, recent-price gap fill), BOJ time-series API, Japanese MOF JGB CSV, and optional FRED API for cross-checking Japanese rates.
+- Japan tickers: J-Quants API v2 (prices/financials, plus short-sale-report / margin-interest for short positioning — Standard plan or higher required; unavailable on the current plan and reported as such), yfinance (news, indices, recent-price gap fill), BOJ time-series API, Japanese MOF JGB CSV, and optional FRED API for cross-checking Japanese rates.
 
 ## What each analyst covers
 
@@ -95,7 +95,7 @@ Data sources:
 |---------|---------|
 | **Technical** | EMA10/SMA50/SMA200 trend, RSI14, MACD, Bollinger Bands, ATR, key support/resistance |
 | **News** | Top headlines, sentiment, sector tailwinds/headwinds, earnings signals |
-| **Fundamentals** | P/E, forward P/E, PEG, P/B, revenue/earnings growth, margins, ROE, FCF, D/E ratio, current ratio, beta, short ratio, quarterly income/balance sheet statements, analyst consensus |
+| **Fundamentals** | P/E, forward P/E, PEG, P/B, revenue/earnings growth, margins, ROE, FCF, D/E ratio, current ratio, beta, short ratio, short interest / short positioning, quarterly income/balance sheet statements, analyst consensus |
 | **Macro** | S&P 500, 10Y Treasury, gold, oil news — geopolitical/monetary policy signals (US); Nikkei 225, USD/JPY, BOJ policy rate, JGB 10Y, US 10Y, oil (JP) |
 | **Bull** | Strongest buy case using all Phase 1 data |
 | **Bear** | Directly rebuts Bull's specific claims with data |

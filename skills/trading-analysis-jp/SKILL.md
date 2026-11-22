@@ -64,6 +64,11 @@ uv run --project /home/masasikatano/project/trading-agents-plugin python /home/m
 - 収益性: 粗利率、営業利益率、ROE、フリーキャッシュフロー
 - 貸借対照表: 総資産、純資産、負債、株式数（BPS）
 - リスク指標: beta、配当利回り（dividendYield）
+- 需給（空売り・信用）: データは3種類あり、混同しないこと。
+  (1) 空売り残高報告（short_sale_report）: 発行済株式数の0.5%以上を保有する大口報告分の合計。0.5%未満は含まれないため「市場全体の空売り残高」ではない。レコードが無いことは残高ゼロを意味しない
+  (2) 信用取引残高（margin_interest）: 信用売り残（ShrtVol）と買い残（LongVol）、信用倍率、前回観測日からの変化。日付（Date）を必ず引用する
+  (3) yfinance_short がある場合のみ: 米国式 short interest で遅延が大きい参考値
+  available が false の項目は「取得不可（理由: reason）」とだけ述べ、値があるかのように書かない
 - アナリストコンセンサス: レコメンデーション平均値（1=強気買い、5=売り）、目標株価 vs 現在価格
 - 日本企業特有の視点: 3 月決算、配当・自社株買い、持ち合い解消やガバナンス改革への言及
 
@@ -232,7 +237,7 @@ BEAR ARGUMENT:
 AGGRESSIVE RISK ANALYST'S ARGUMENT (これに直接返答):
 [Subagent 7a の Aggressive Risk レポート全文を挿入]
 
-150〜200 語で、具体的な数値（beta、D/E、空売り比率、金利水準など）を引用してください。
+150〜200 語で、具体的な数値（beta、D/E、空売り残高報告の合計割合、信用売り残の変化、金利水準など）を引用してください。
 
 単に Bear に同調するのではなく、Bull と Aggressive Risk が扱わなかったリスクを挙げてください。
 
@@ -391,5 +396,3 @@ VERDICT: [2〜3 文 — なぜ強気または弱気が勝ったか、3 つのリ
 
 PM の完全な判断をユーザーに表示してください。
 
-## Appendix: short_positioning (fundamentals.short_positioning, if available)
-- J-Quants short_sale_report + margin_interest (CalcDate grouped) + yfinance_short; `no_records` or nulls mean unavailable on current plan — analyze on available indicators only.

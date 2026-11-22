@@ -289,7 +289,7 @@ uv run --project /Users/davidchen/repo/TradingAgents python /Users/davidchen/rep
 - J-Quants 無料プランでは、株価データに最大 12 週間の遅延があります。不足分は yfinance で補完
 - 指数データ（日経平均、円相場、米10年債、原油）は J-Quants 無料プランでは未取得のため yfinance を使用
 - 日本の金利データ（BOJ政策金利・日本国債10年利回り）は BOJ API・財務省 CSV・FRED API から取得
-- `shortRatio` などの空売り指標は J-Quants 有料プラン限定のため未取得
+- 空売り・信用系は、米国株の short interest（yfinance 由来）は取得可能。日本株の空売り残高報告（short-sale-report）・信用取引残高（margin-interest）は Standard プラン以上が必要で、現プランでは未取得（コードは実装済み、取得不可として明示する）
 
 ---
 

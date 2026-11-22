@@ -126,20 +126,30 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
 
     spf = info.get("shortPercentOfFloat")
     spso = info.get("sharesPercentSharesOut")
+    sspm = info.get("sharesShortPriorMonth")
+    sss = info.get("sharesShort")
     data["short_interest"] = {
+        "shares_short": sss,
+        "shares_short_prior_month": sspm,
+        "shares_short_change_pct": (
+            safe(float(sss) / float(sspm) * 100 - 100)
+            if isinstance(sss, (int, float))
+            and isinstance(sspm, (int, float))
+            and float(sspm) != 0 else None),
+        "short_percent_of_float_pct": (
+            safe(float(spf) * 100)
+            if isinstance(spf, (int, float)) else None),
+        "shares_percent_shares_out_pct": (
+            safe(float(spso) * 100)
+            if isinstance(spso, (int, float)) else None),
         "short_ratio_days_to_cover": safe(info.get("shortRatio")),
-        "short_percent_of_float": safe(spf * 100) if isinstance(spf, (int, float)) else None,
-        "short_percent_of_shares_outstanding": safe(spso * 100) if isinstance(spso, (int, float)) else None,
-        "shares_short": info.get("sharesShort"),
-        "shares_short_prior_month": info.get("sharesShortPriorMonth"),
         "float_shares": info.get("floatShares"),
         "shares_outstanding": info.get("sharesOutstanding"),
-        "short_interest_date": _epoch_to_date(info.get("dateShortInterest")),
-        "short_interest_prior_date": _epoch_to_date(info.get("sharesShortPreviousMonthDate")),
-        "no_records": all(info.get(k) is None for k in (
-            "shortRatio", "shortPercentOfFloat", "sharesPercentSharesOut",
-            "sharesShort", "dateShortInterest")),
-        "note": "short_interest derived from yfinance info; nulls mean unavailable",
+        "date_short_interest": _epoch_to_date(info.get("dateShortInterest")),
+        "shares_short_previous_month_date": _epoch_to_date(
+            info.get("sharesShortPreviousMonthDate")),
+        "available": sss is not None,
+        "source": "yfinance_info",
     }
 
     return data
