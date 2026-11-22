@@ -5,13 +5,13 @@ description: Multi-agent trading analysis for a stock ticker. Runs technical, ne
 
 Extract the ticker symbol from $ARGUMENTS (e.g. "NVDA"). If no ticker is provided, ask the user for one before proceeding.
 Also extract an optional second token from $ARGUMENTS as the ENGINE name (e.g. "NVDA Grok" → ENGINE=Grok).
-If no ENGINE token is provided, use the ANALYST_ENGINE environment variable if set; otherwise default to "Kimi".
+If no ENGINE token is provided, use the ANALYST_ENGINE environment variable if set; otherwise default to "Claude".
 
 Set TODAY to the current date in YYYY-MM-DD format.
 
 ## Phase 1 — Parallel Data Analysis
 
-Spawn these 4 subagents IN PARALLEL using the Agent tool (all at once, do not wait for one before starting the others). Each subagent has Bash access to fetch data.
+Spawn these 4 subagents IN PARALLEL using the Task tool with subagent_type (all at once, do not wait for one before starting the others). Each subagent has Bash access to fetch data.
 
 **Subagent 1 — Technical Analyst:**
 ```
@@ -19,7 +19,7 @@ You are a technical analyst for $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_market_data.py --ticker $TICKER --type technical --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_market_data.py --ticker $TICKER --type technical --date $TODAY
 ```
 
 Write a technical analysis report (150-200 words) covering:
@@ -37,7 +37,7 @@ You are a news and sentiment analyst for $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_market_data.py --ticker $TICKER --type news --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_market_data.py --ticker $TICKER --type news --date $TODAY
 ```
 
 Write a sentiment report (150-200 words) covering:
@@ -55,7 +55,7 @@ You are a fundamentals analyst for $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_market_data.py --ticker $TICKER --type fundamentals --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_market_data.py --ticker $TICKER --type fundamentals --date $TODAY
 ```
 
 Write a fundamentals report (200-250 words) covering:
@@ -77,7 +77,7 @@ You are a macro analyst providing global market context as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_market_data.py --ticker MACRO --type macro --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_market_data.py --ticker MACRO --type macro --date $TODAY
 ```
 
 Write a macro context report (100-150 words) covering:

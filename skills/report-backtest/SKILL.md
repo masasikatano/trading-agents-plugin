@@ -15,7 +15,7 @@ description: >
 
 評価日はレポート日の **7 暦日後以降** のみ。満たさないファイルはスキップし理由を出す。trading-analysis パイプラインは再実行しない。価格は推測せずスクリプト JSON のみ使う。
 
-リポジトリルート: `/home/masasikatano/project/trading-agents-plugin`
+リポジトリルート: `${CLAUDE_PLUGIN_ROOT}`
 
 ## 1. レポートを読む
 
@@ -33,7 +33,7 @@ ENTRY がレンジなら中央値を数値化する。STOP が取れなければ
 JP（`TYO:` / `.T` / 数字）も米株も同じコマンド:
 
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_backtest_prices.py --ticker $TICKER --from $REPORT_DATE --to $EVAL_DATE
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_backtest_prices.py --ticker $TICKER --from $REPORT_DATE --to $EVAL_DATE
 ```
 
 JSON の `error` があればその銘柄は失敗として記録し、次へ。

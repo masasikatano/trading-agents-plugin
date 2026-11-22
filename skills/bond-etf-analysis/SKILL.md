@@ -5,14 +5,14 @@ description: Multi-agent trading analysis for a US Treasury bond ETF (EDV, TLT, 
 
 Extract the ticker symbol from $ARGUMENTS (e.g. "TLT"). If no ticker is provided, ask the user for one before proceeding.
 Also extract an optional second token from $ARGUMENTS as the ENGINE name (e.g. "TLT Grok" → ENGINE=Grok).
-If no ENGINE token is provided, use the ANALYST_ENGINE environment variable if set; otherwise default to "Kimi".
+If no ENGINE token is provided, use the ANALYST_ENGINE environment variable if set; otherwise default to "Claude".
 Any US Treasury-bond ETF ticker works (EDV, TLT, SPTL, GOVT, VGLT, SPTI, etc.).
 
 Set TODAY to the current date in YYYY-MM-DD format.
 
 ## Phase 1 — Parallel Data Analysis
 
-Spawn these 4 subagents IN PARALLEL using the Agent tool (all at once, do not wait for one before starting the others). Each subagent has Bash access to fetch data.
+Spawn these 4 subagents IN PARALLEL using the Task tool with subagent_type (all at once, do not wait for one before starting the others). Each subagent has Bash access to fetch data.
 
 **Subagent 1 — Technical Analyst:**
 ```
@@ -20,7 +20,7 @@ You are a technical analyst for the US Treasury bond ETF $TICKER as of $TODAY.
 
 Fetch data:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_bond_etf_data.py --ticker $TICKER --type technical --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_bond_etf_data.py --ticker $TICKER --type technical --date $TODAY
 ```
 
 Write a technical analysis report (150-200 words) covering:
@@ -40,7 +40,7 @@ You are a rates and macro analyst evaluating the interest-rate environment for t
 
 Fetch data:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_bond_etf_data.py --ticker $TICKER --type rates --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_bond_etf_data.py --ticker $TICKER --type rates --date $TODAY
 ```
 
 Write a rates report (150-200 words) covering:
@@ -61,7 +61,7 @@ You are an ETF fundamentals analyst for the US Treasury bond ETF $TICKER as of $
 
 Fetch data:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_bond_etf_data.py --ticker $TICKER --type fundamentals --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_bond_etf_data.py --ticker $TICKER --type fundamentals --date $TODAY
 ```
 
 Write an ETF fundamentals report (150-200 words) covering:
@@ -81,7 +81,7 @@ You are a bond-market news and sentiment analyst for the US Treasury bond ETF $T
 
 Fetch data:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_bond_etf_data.py --ticker $TICKER --type news --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_bond_etf_data.py --ticker $TICKER --type news --date $TODAY
 ```
 
 Write a bond-market sentiment report (150-200 words) covering:

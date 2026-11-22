@@ -9,7 +9,7 @@ description: 東証上場銘柄を対象としたマルチエージェントに�
 
 ## Phase 1 — 並列データ分析
 
-以下 4 つのサブエージェントを `Agent` ツールで同時に起動する（1 つずつ待たずに全て並列で実行）。各サブエージェントには Bash 経由でデータ取得ができる。
+以下 4 つのサブエージェントを `Task` ツール（subagent_type 指定）で同時に起動する（1 つずつ待たずに全て並列で実行）。各サブエージェントには Bash 経由でデータ取得ができる。
 
 **Subagent 1 — テクニカルアナリスト:**
 ```
@@ -17,7 +17,7 @@ description: 東証上場銘柄を対象としたマルチエージェントに�
 
 データ取得:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_jp_market_data.py --ticker $TICKER --type technical --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_jp_market_data.py --ticker $TICKER --type technical --date $TODAY
 ```
 
 テクニカル分析レポート（150〜200 語）を作成し、以下を含めてください:
@@ -36,7 +36,7 @@ TECHNICAL SIGNAL: BULLISH, BEARISH, or NEUTRAL
 
 データ取得:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_jp_market_data.py --ticker $TICKER --type news --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_jp_market_data.py --ticker $TICKER --type news --date $TODAY
 ```
 
 センチメントレポート（150〜200 語）を作成し、以下を含めてください:
@@ -55,7 +55,7 @@ SENTIMENT SIGNAL: POSITIVE, NEGATIVE, or NEUTRAL
 
 データ取得:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_jp_market_data.py --ticker $TICKER --type fundamentals --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_jp_market_data.py --ticker $TICKER --type fundamentals --date $TODAY
 ```
 
 ファンダメンタル分析レポート（200〜250 語）を作成し、以下を含めてください:
@@ -82,7 +82,7 @@ FUNDAMENTAL SIGNAL: STRONG, FAIR, or WEAK
 
 データ取得:
 ```bash
-uv run --project /home/masasikatano/project/trading-agents-plugin python /home/masasikatano/project/trading-agents-plugin/scripts/fetch_jp_market_data.py --ticker MACRO --type macro --date $TODAY
+uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_jp_market_data.py --ticker MACRO --type macro --date $TODAY
 ```
 
 マクロ環境レポート（100〜150 語）を作成し、以下を含めてください:
@@ -395,4 +395,15 @@ VERDICT: [2〜3 文 — なぜ強気または弱気が勝ったか、3 つのリ
 ```
 
 PM の完全な判断をユーザーに表示してください。
+
+## Phase 6 — レポート保存
+
+Phase 1 の全レポート、Bull/Bear 討論、3 方向リスク議論、Phase 3〜5 の出力を以下に保存:
+
+```
+reports/${TODAY}_${TICKER}_${ENGINE}.md
+```
+
+（プロジェクトルート相対。`${CLAUDE_PLUGIN_ROOT}` 配下で実行している場合はその直下）。データ欠落やフォールバック使用があれば注記すること。保存後にパスをユーザーに伝えること。
+なお ENGINE は `$ARGUMENTS` の第 2 トークンがあればそれを使い、なければ `ANALYST_ENGINE` 環境変数、どれもなければ `Claude` を使う。
 

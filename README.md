@@ -1,6 +1,6 @@
 # trading-agents-plugin
 
-Multi-agent trading analysis skills for AI coding agents — runs on [Kimi Code](https://www.kimi.com/) and [Grok Build](https://grok.com/) with no external LLM API cost (uses the agent's built-in subagent capability).
+Multi-agent trading analysis skills for AI coding agents — runs on [Muse Code](https://muse.ai/), [Kimi Code](https://www.kimi.com/) and [Grok Build](https://grok.com/) with no external LLM API cost (uses the agent's built-in subagent capability).
 
 ## Setup
 
@@ -12,7 +12,7 @@ cd trading-agents-plugin
 uv sync   # or: pip install yfinance pandas
 ```
 
-The `skills/` directory is read automatically when you open this project in Kimi Code (project-scope skills). For other agents (e.g. Grok Build), point the agent at `skills/trading-analysis/SKILL.md` (and the `-jp` variant) as its instruction set — the skill files are agent-agnostic plain Markdown.
+The `skills/` directory is read automatically when you open this project in Kimi Code (project-scope skills) or when installed as a Muse Code plugin (see `.claude-plugin/plugin.json`; slash commands in `commands/`). For other agents (e.g. Grok Build), point the agent at `skills/trading-analysis/SKILL.md` (and the `-jp` variant) as its instruction set — the skill files are agent-agnostic plain Markdown.
 
 ## Usage
 
@@ -25,7 +25,7 @@ The `skills/` directory is read automatically when you open this project in Kimi
 The full analysis report is saved automatically to `reports/{date}_{ticker}_{engine}.md`
 (e.g. `reports/20261024_NVDA_Kimi.md`). To override the engine suffix, pass it as a
 second argument (`/trading-analysis NVDA Grok`) or set the `ANALYST_ENGINE` environment
-variable; it defaults to `Kimi`.
+variable; it defaults to `Claude`.
 
 ### Japan equities (`trading-analysis-jp`)
 
@@ -129,7 +129,7 @@ VERDICT: Bull wins on fundamentals — no operational weakness identified. The 3
 
 ## Requirements
 
-- An agent that supports subagents (e.g. [Kimi Code](https://www.kimi.com/) or [Grok Build](https://grok.com/))
+- An agent that supports subagents (e.g. Muse Code, [Kimi Code](https://www.kimi.com/) or [Grok Build](https://grok.com/))
 - Python 3.10+, [uv](https://github.com/astral-sh/uv) (or pip)
 
 ## Inspiration

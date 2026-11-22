@@ -7,6 +7,7 @@ __pycache__/
 # Build artifacts
 trading_agents_plugin.egg-info/
 
-# Plugin metadata directory (if managed externally)
-.claude-plugin/
+# Local plugin manager state (marketplace cache) — plugin.json itself is tracked
+.claude-plugin/marketplace.json
+.claude-plugin/cache/
 
