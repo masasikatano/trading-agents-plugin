@@ -27,10 +27,15 @@ Naming convention: `{asset}-analysis-{market}` — market suffix `-us` / `-jp` f
 /trading-analysis-us SOXL
 ```
 
-The full analysis report is saved automatically to `reports/{date}_{ticker}_{engine}.md`
-(e.g. `reports/20261024_NVDA_Kimi.md`). To override the engine suffix, pass it as a
+The full analysis report is saved automatically to `reports/{date}_{tag}-{ticker}_{engine}.md`
+(e.g. `reports/2026-10-24_US-NVDA_Kimi.md`). To override the engine suffix, pass it as a
 second argument (`/trading-analysis-us NVDA Grok`) or set the `ANALYST_ENGINE` environment
 variable; it defaults to `Claude`.
+
+Report filename tags: `US` (US stocks), `JP` (Japan stocks, `TYO:` prefix stripped,
+e.g. `2026-11-22_JP-9984_Muse.md`), `INV-JP` (Japan inverse ETFs), `INV-US` (US inverse
+ETFs), `LEV-US` (US leverage ETFs), `BOND` (Treasury bond ETFs). Date is `YYYY-MM-DD`.
+Existing files without a tag keep working as-is; new reports always include the tag.
 
 ### Japan equities (`trading-analysis-jp`)
 
@@ -114,7 +119,7 @@ After at least 7 calendar days, check what would have happened if you followed a
 /report-backtest 20260731
 ```
 
-Writes `backtests/{report_date}_{ticker}_{eval_date}.md`. Batch runs also write `backtests/{report_date}_summary_{eval_date}.md`. Prices come from `scripts/fetch_backtest_prices.py` (J-Quants + yfinance for `TYO:`, yfinance otherwise). Verdicts are `ALIGNED` / `MISALIGNED` / `INCONCLUSIVE`. On `MISALIGNED`, the file includes suggested patches for `trading-analysis-jp` or `trading-analysis-us` (skills are not edited automatically).
+Writes `backtests/{report_basename}_{eval_date}.md` (e.g. `backtests/2026-07-31_JP-6952_Grok_2026-08-24.md`). Batch runs also write `backtests/{report_date}_summary_{eval_date}.md`. Prices come from `scripts/fetch_backtest_prices.py` (J-Quants + yfinance for `TYO:`, yfinance otherwise). Verdicts are `ALIGNED` / `MISALIGNED` / `INCONCLUSIVE`. On `MISALIGNED`, the file includes suggested patches for `trading-analysis-jp` or `trading-analysis-us` (skills are not edited automatically).
 
 ## Pipeline
 

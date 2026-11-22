@@ -412,10 +412,10 @@ Save the full analysis (all Phase 1 reports, the bull/bear debate, the 3-way ris
 debate, and the Phase 3–5 outputs) to a file named:
 
 ```
-reports/${TODAY}_${TICKER}_${ENGINE}.md
+reports/${TODAY}_US-${TICKER}_${ENGINE}.md
 ```
 
-(relative to the project root, e.g. `reports/20261024_NVDA_Kimi.md`). Use the Write
+(relative to the project root, e.g. `reports/2026-10-24_US-NVDA_Kimi.md`). Use the Write
 tool. Start the report with a header block listing Data sources used and a Gaps line
 collecting every "Gap:" line from Phase 1 (write "Gaps: none" when there are none).
 Include a note in the report if any data source was unavailable and a fallback

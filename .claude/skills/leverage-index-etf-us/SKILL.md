@@ -411,7 +411,7 @@ PM の完全な判断をユーザーに表示してください。
 Phase 1 の全レポート、Bull/Bear 討論、3 方向リスク議論、Phase 3〜5 の出力を以下に保存:
 
 ```
-reports/${TODAY}_${TICKER}_${ENGINE}.md
+reports/${TODAY}_LEV-US-${TICKER}_${ENGINE}.md
 ```
 
 レポートには先頭にメタデータ（対象ETF名、原指数、レバレッジ倍率（+2x）、トレンド順張り・短期〜中期保有前提の注意書き）を付けること。

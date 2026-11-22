@@ -396,10 +396,10 @@ PM の完全な判断をユーザーに表示してください。
 Phase 1 の全レポート、Bull/Bear 討論、3 方向リスク議論、Phase 3〜5 の出力を以下に保存:
 
 ```
-reports/${TODAY}_${TICKER}_${ENGINE}.md
+reports/${TODAY}_JP-${TICKER}_${ENGINE}.md
 ```
 
-ファイル名に使えない文字は除去すること。特に `${TICKER}` のコロンは取り除く（例: `TYO:9984` → `TYO9984` で `reports/2026-11-22_TYO9984_Muse.md`）。
+ファイル名に使えない文字は除去すること。`${TICKER}` から `TYO:` 接頭辞を取り除く（例: `TYO:9984` → `9984` で `reports/2026-11-22_JP-9984_Muse.md`）。
 
 （プロジェクトルート相対。`${CLAUDE_PLUGIN_ROOT}` 配下で実行している場合はその直下）。データ欠落やフォールバック使用があれば注記すること。保存後にパスをユーザーに伝えること。
 なお ENGINE は `$ARGUMENTS` の第 2 トークンがあればそれを使い、なければ `ANALYST_ENGINE` 環境変数、どれもなければ `Claude` を使う。

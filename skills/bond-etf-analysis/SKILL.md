@@ -418,10 +418,10 @@ Save the full analysis (all Phase 1 reports, the bull/bear debate, the 3-way ris
 debate, and the Phase 3–5 outputs) to a file named:
 
 ```
-reports/${TODAY}_${TICKER}_${ENGINE}.md
+reports/${TODAY}_BOND-${TICKER}_${ENGINE}.md
 ```
 
-(relative to the project root, e.g. `reports/20261024_TLT_Kimi.md`). Use the Write
+(relative to the project root, e.g. `reports/2026-10-24_BOND-TLT_Kimi.md`). Use the Write
 tool. Include a note in the report if any data source was unavailable and a fallback
 was used (e.g. FRED key missing so only yfinance rate data was used, or duration
 taken from the fallback table). Then tell the user the saved file path.

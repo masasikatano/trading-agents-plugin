@@ -9,7 +9,7 @@ description: >
 
 `$ARGUMENTS` から対象を取る。未指定ならユーザーに聞く。
 
-- ファイルパス（例: `reports/20260731_TYO6952_Grok.md`）
+- ファイルパス（例: `reports/2026-07-31_JP-6952_Grok.md`）
 - 日付プレフィックス（例: `20260731`）→ `reports/{date}_*.md` を一括
 - `--eval YYYY-MM-DD` があれば評価日。なければ今日
 
@@ -77,7 +77,7 @@ ALIGNED / INCONCLUSIVE ではこの節を省略するか「なし」と書く。
 
 ## 6. 保存
 
-個別: `backtests/{YYYYMMDD}_{TICKER}_{evalYYYYMMDD}.md`
+個別: `backtests/{レポートのベース名}_{evalYYYYMMDD}.md`（例: `backtests/2026-07-31_JP-6952_Grok_2026-08-24.md`）
 
 一括時は加えて `backtests/{report_date}_summary_{eval_date}.md`（ticker, signal, stock %, vs bench, verdict）。
 
