@@ -69,6 +69,17 @@ For TSE-listed US-index inverse ETFs (2870 = NASDAQ100 double-inverse, 2842 = NA
 /inverse-index-etf-us 2249 Grok
 ```
 
+### US-index leverage ETFs (`leverage-index-etf-us`)
+
+For TSE-listed US-index leverage (bull 2x) ETFs (2869 = NASDAQ100 leverage, 2237 = S&P500 leverage):
+
+```
+/leverage-index-etf-us 2869
+/leverage-index-etf-us 2237 Grok
+```
+
+This uses `scripts/fetch_us_leverage_etf_data.py` (yfinance only, no API key), mirroring `inverse-index-etf-us`: the underlying index is NASDAQ100 (`^NDX`, fallback `QQQ`) or S&P500 (`^GSPC`, fallback `SPY`), macro covers both US indices plus the US 10Y, USD/JPY, and oil. Tickers are passed bare (`2869`) and normalized to `2869.T` internally. Expense ratios (0.825% for 2869, 0.803% for 2237, tax-inclusive) are verified against JPX official docs as of 2026-11-22 — re-verify if the issuer revises fees. Note the TSE/US session time-lag: the prior US session's move is priced in the next TSE session. Daily-rebalanced +2x funds decay in range-bound markets, so trend-following, short-to-medium holding periods are assumed.
+
 This uses `scripts/fetch_us_inverse_etf_data.py` (yfinance only, no API key), mirroring `inverse-index-etf-jp`: the underlying index is NASDAQ100 (`^NDX`, fallback `QQQ`) or S&P500 (`^GSPC`, fallback `SPY`), macro covers both US indices plus the US 10Y, USD/JPY, and oil. Tickers are passed bare (`2870`) and normalized to `2870.T` internally. Expense ratios (0.55%) are fallback-static — verify against the issuer factsheet before sizing. Note the TSE/US session time-lag: the prior US session's move is priced in the next TSE session.
 
 ### US Treasury bond ETFs (`bond-etf-analysis`)
