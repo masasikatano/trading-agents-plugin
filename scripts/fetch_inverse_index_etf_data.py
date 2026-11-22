@@ -36,20 +36,25 @@ from market_data_utils import (
     safe,
 )
 
-# Static facts — verify against the issuer factsheet before sizing.
+# Static facts — expense_ratio is tax-inclusive, verified 2026-11-22 against
+# JPX official docs (leveraged-inverse files). Re-verify if the issuer revises fees.
 ETF_STATIC_FACTS = {
     "1360": {"name": "日経平均ベア２倍上場投信", "underlying": "N225",
-             "leverage": -2, "expense_ratio": 0.80,
-             "factsheet": "Simplex / 日経平均ベア２倍上場投信 factsheet"},
+             "leverage": -2, "expense_ratio": 0.825,
+             "expense_ratio_tax": "incl", "expense_verified": "2026-11-22",
+             "factsheet": "https://www.jpx.co.jp/equities/products/etfs/leveraged-inverse/files/1360-j.pdf"},
     "1356": {"name": "ＴＯＰＩＸベア２倍上場投信", "underlying": "TOPIX",
-             "leverage": -2, "expense_ratio": 0.80,
-             "factsheet": "Simplex / ＴＯＰＩＸベア２倍上場投信 factsheet"},
+             "leverage": -2, "expense_ratio": 0.825,
+             "expense_ratio_tax": "incl", "expense_verified": "2026-11-22",
+             "factsheet": "https://www.jpx.co.jp/equities/products/etfs/leveraged-inverse/files/1356-j.pdf"},
     "1366": {"name": "iFreeETF 日経平均ダブルインバース・インデックス",
-             "underlying": "N225", "leverage": -2, "expense_ratio": 0.64,
-             "factsheet": "大和アセット 1366 factsheet"},
+             "underlying": "N225", "leverage": -2, "expense_ratio": 0.825,
+             "expense_ratio_tax": "incl", "expense_verified": "2026-11-22",
+             "factsheet": "https://www.jpx.co.jp/equities/products/etfs/leveraged-inverse/files/1366-j.pdf"},
     "1456": {"name": "iFreeETF 日経平均インバース・インデックス",
-             "underlying": "N225", "leverage": -1, "expense_ratio": 0.64,
-             "factsheet": "大和アセット 1456 factsheet"},
+             "underlying": "N225", "leverage": -1, "expense_ratio": 0.825,
+             "expense_ratio_tax": "incl", "expense_verified": "2026-11-22",
+             "factsheet": "https://www.jpx.co.jp/equities/products/etfs/leveraged-inverse/files/1456-j.pdf"},
 }
 
 # TOPIX has no reliable Yahoo index symbol (^TOPX is often empty);
@@ -197,7 +202,7 @@ def fetch_cost(ticker: str, as_of: date) -> dict:
     facts = ETF_STATIC_FACTS.get(bare)
     out: dict = {"ticker": bare, "as_of": as_of.isoformat()}
     if facts:
-        out["static_facts"] = {**facts, "note": "概算値 — サイジング前に発行体ファクトシートで確認すること"}
+        out["static_facts"] = {**facts, "note": "信託報酬は税込・JPX公表資料で確認済み（expense_verified参照）"}
     try:
         info = yf.Ticker(resolve_ticker(ticker)).info or {}
     except Exception:
@@ -210,17 +215,35 @@ def fetch_cost(ticker: str, as_of: date) -> dict:
         out["expense_ratio_pct"] = fallback_expense
         out["expense_ratio_source"] = "fallback_static"
     out["aum"] = info.get("totalAssets")
+    # 気配は取得時点のスナップショット。過去基準日との比較ではなく目安として扱うこと。
+    bid, ask = safe(info.get("bid")), safe(info.get("ask"))
+    if bid and ask and ask > 0:
+        out["quote"] = {"bid": bid, "ask": ask,
+                        "spread_bps": safe((ask - bid) / ask * 10000),
+                        "bid_size": info.get("bidSize"), "ask_size": info.get("askSize"),
+                        "quote_status": "OK",
+                        "note": "取得時点のスナップショットであり、基準日時点の気配ではない"}
+    else:
+        out["quote"] = {"quote_status": "QUOTE_STALE",
+                        "note": "板情報なし — 指値運用前提。寄り付きの気配で確認すること。"}
     e_hist = _yf_history(resolve_ticker(ticker), as_of - timedelta(days=10), as_of + timedelta(days=1))
     price_last = safe(e_hist["Close"].dropna().iloc[-1]) if not e_hist.empty and "Close" in e_hist.columns and not e_hist["Close"].dropna().empty else None
     out["price_last"] = price_last
-    prev_close = safe(info.get("previousClose"))
-    nav = safe(info.get("navPrice"))
-    stale = prev_close is not None and price_last is not None and abs(prev_close - price_last) / price_last > 0.02
-    out["nav_vs_price"] = {"previousClose": prev_close,
-                           "nav": nav,
-                           "price_last_history": price_last,
-                           "stale": stale,
-                           "nav_status": "STALE_OR_MISSING" if (nav is None or stale) else "OK"}
+    # yfinance `info` は取得時点のスナップショットであり、過去基準日の比較には使えない。
+    # 基準日が直近(今日から3日以内)の場合のみ同日値として参照し、それ以外は評価外とする。
+    if (date.today() - as_of).days <= 3:
+        prev_close = safe(info.get("previousClose"))
+        nav = safe(info.get("navPrice"))
+        stale = prev_close is not None and price_last is not None and abs(prev_close - price_last) / price_last > 0.02
+        out["nav_vs_price"] = {"previousClose": prev_close,
+                               "nav": nav,
+                               "price_last_history": price_last,
+                               "stale": stale,
+                               "nav_status": "STALE_OR_MISSING" if (nav is None or stale) else "OK"}
+    else:
+        out["nav_vs_price"] = {"nav_status": "NOT_APPLICABLE",
+                               "note": ("プレミアム/ディスカウントは日次NAV時系列が無料ソースにないため評価外。"
+                                        "寄り付きの気配で確認すること。")}
     out["yield_ttm_pct"] = safe((info.get("trailingAnnualDividendYield") or 0) * 100)
     if (facts or {}).get("leverage") == -2:
         out["decay_warning"] = ("日次2倍リバランス型はボックス相場で減価する。"

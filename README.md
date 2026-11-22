@@ -60,6 +60,17 @@ For TSE-listed inverse / double-inverse index ETFs (1360 N225 -2x, 1356 TOPIX -2
 
 This uses `scripts/fetch_inverse_index_etf_data.py` (yfinance only, no API key): ETF technicals, underlying index trend + 20-day tracking check, cost/structure (expense, leverage decay), news, and macro. Individual-stock fundamentals are intentionally excluded; short-term trade / hedge use is assumed.
 
+### US-index inverse ETFs (`inverse-index-etf-us`)
+
+For TSE-listed US-index inverse ETFs (2870 = NASDAQ100 double-inverse, 2842 = NASDAQ100 inverse, 2249 = S&P500 double-inverse, 2238 = S&P500 inverse):
+
+```
+/inverse-index-etf-us 2870
+/inverse-index-etf-us 2249 Grok
+```
+
+This uses `scripts/fetch_us_inverse_etf_data.py` (yfinance only, no API key), mirroring `inverse-index-etf-jp`: the underlying index is NASDAQ100 (`^NDX`, fallback `QQQ`) or S&P500 (`^GSPC`, fallback `SPY`), macro covers both US indices plus the US 10Y, USD/JPY, and oil. Tickers are passed bare (`2870`) and normalized to `2870.T` internally. Expense ratios (0.55%) are fallback-static — verify against the issuer factsheet before sizing. Note the TSE/US session time-lag: the prior US session's move is priced in the next TSE session.
+
 ### US Treasury bond ETFs (`bond-etf-analysis`)
 
 For US Treasury-bond ETFs (EDV, TLT, SPTL, GOVT, VGLT, ...):
