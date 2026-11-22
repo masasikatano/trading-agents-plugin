@@ -1,0 +1,5 @@
+{
+  "env": {
+    "ANALYST_ENGINE": "Claude"
+  }
+}

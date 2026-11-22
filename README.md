@@ -12,6 +12,9 @@ cd trading-agents-plugin
 uv sync   # or: pip install yfinance pandas
 ```
 
+> Run scripts via `uv run --project . python scripts/...` (or `.venv/bin/python ...`).
+> Bare `python` / `python3` does not have yfinance installed.
+
 The `skills/` directory is read automatically when you open this project in Kimi Code (project-scope skills) or when installed as a Muse Code plugin (see `.claude-plugin/plugin.json`; slash commands in `commands/`). For other agents (e.g. Grok Build), point the agent at `skills/trading-analysis/SKILL.md` (and the `-jp` variant) as its instruction set — the skill files are agent-agnostic plain Markdown.
 
 ## Usage
@@ -53,7 +56,14 @@ For US Treasury-bond ETFs (EDV, TLT, SPTL, GOVT, VGLT, ...):
 /bond-etf-analysis EDV Grok
 ```
 
-This uses `scripts/fetch_bond_etf_data.py`, which combines yfinance (prices, fund data, dividends, news) and the FRED API (Treasury curve: DGS2/DGS10/DGS30/T10Y2Y/DFII10). The FRED key is optional — without it the rates fetch falls back to yfinance (^TNX/^TYX) with a warning.
+SBI証券で買える東証上場銘柄も対応 (237A = iシェアーズ 米国債25年超ロングデュレーション ETF / EDV相当、2255 = iシェアーズ 米国債20年超 ETF / TLT相当):
+
+```
+/bond-etf-analysis 237A
+/bond-etf-analysis 2255
+```
+
+This uses `scripts/fetch_bond_etf_data.py`, which combines yfinance (prices, fund data, dividends, news) and the FRED API (Treasury curve: DGS2/DGS10/DGS30/T10Y2Y/DFII10). The FRED key is optional — without it the rates fetch falls back to yfinance (^TNX/^TYX) with a warning. TSE tickers are passed bare (`237A`, `2255`) and normalized to `237A.T` / `2255.T` internally; duration fallbacks are 27.5y (237A) and 16.0y (2255, approximate — verify against the issuer factsheet). TSE issues are JPY-denominated without FX hedge, so prices also move with USD/JPY.
 
 ```bash
 FRED_API_KEY=      # optional, used for Treasury curve data (DGS2/DGS10/DGS30/T10Y2Y/DFII10)

@@ -1,12 +1,13 @@
 ---
 name: bond-etf-analysis
-description: Multi-agent trading analysis for a US Treasury bond ETF (EDV, TLT, SPTL, or any US Treasury ETF). Runs technical, fundamentals, rates, and news analysts in parallel, then an adversarial bull/bear debate, then a 3-way risk debate (Aggressive/Conservative/Neutral), then Research Manager, Trader, and Portfolio Manager to produce a final BUY/SELL/HOLD decision with entry, stop, and sizing.
+description: Multi-agent trading analysis for a US Treasury bond ETF — US-listed (EDV, TLT, SPTL, or any US Treasury ETF) or TSE-listed via SBI証券 (237A, 2255). Runs technical, fundamentals, rates, and news analysts in parallel, then an adversarial bull/bear debate, then a 3-way risk debate (Aggressive/Conservative/Neutral), then Research Manager, Trader, and Portfolio Manager to produce a final BUY/SELL/HOLD decision with entry, stop, and sizing.
 ---
 
 Extract the ticker symbol from $ARGUMENTS (e.g. "TLT"). If no ticker is provided, ask the user for one before proceeding.
 Also extract an optional second token from $ARGUMENTS as the ENGINE name (e.g. "TLT Grok" → ENGINE=Grok).
 If no ENGINE token is provided, use the ANALYST_ENGINE environment variable if set; otherwise default to "Claude".
 Any US Treasury-bond ETF ticker works (EDV, TLT, SPTL, GOVT, VGLT, SPTI, etc.).
+SBI証券で買える東証上場銘柄も指定可: 237A (iシェアーズ 米国債25年超ロングデュレーション ETF, EDV相当) と 2255 (iシェアーズ 米国債20年超 ETF, TLT相当)。`237A` / `237A.T` どちらの表記でも可 (スクリプトが .T に正規化する)。東証銘柄は円建て・為替ヘッジなしのため、米金利に加えてドル円の影響も受ける点に留意すること。
 
 Set TODAY to the current date in YYYY-MM-DD format.
 
@@ -47,6 +48,7 @@ Write a rates report (150-200 words) covering:
 - Treasury curve: 2Y / 10Y / 30Y levels and 1-month / 3-month / 1-year changes (bp)
 - Curve shape: 2s10s spread, inversion/normalization trend
 - Real yields: 10Y TIPS level and trend — real-rate risk for long duration
+- FX: USD/JPY (DEXJPUS) level and trend from the data — critical for unhedged TSE issues (237A/2255)
 - Cross-check: yfinance ^TNX / ^TYX vs FRED levels; note any data caveats in the output
 - Policy stance: what the 2Y and curve imply about the Fed's likely path; FOMC stance if visible in recent news
 - Supply: heavy Treasury auction calendar / fiscal deficit supply concerns if visible in recent news
@@ -66,8 +68,8 @@ uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetc
 
 Write an ETF fundamentals report (150-200 words) covering:
 - Quantitative rate sensitivity: effective duration from the data; compute the approximate price impact of a +/-25bp yield move (price change % ≈ duration × 0.25). If duration_source is "fallback_table", note it is approximate
-- Expense ratio vs peers (EDV/TLT/SPTL comparison if relevant)
-- AUM: fund size and liquidity implications
+- Expense ratio vs peers (EDV/TLT/SPTL comparison if relevant; for 237A/2255 compare against each other and note the JPY-denominated, unhedged FX exposure — price also moves with USD/JPY — citing the venue field when present; cite expense_source/factsheet when the value comes from static facts)
+- AUM: fund size and liquidity implications (cite aum_currency/aum_source so JPY-denominated size is not misread)
 - NAV premium/discount vs market price
 - Dividends: trailing 12-month total, annualized yield vs SEC yield, and the trend (rising/falling/stable)
 - Category and fund family context
@@ -85,7 +87,7 @@ uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetc
 ```
 
 Write a bond-market sentiment report (150-200 words) covering:
-- Top 3 most impactful headlines about Treasury yields, the Fed/FOMC, CPI/inflation, or the ETF itself, and their implications for bond prices
+- Top 3 most impactful headlines about Treasury yields, the Fed/FOMC, CPI/inflation, or the ETF itself, and their implications for bond prices (cite coverage_note/direct_coverage_count — state explicitly when there are no direct ticker headlines)
 - Overall bond-market sentiment: bullish (rates falling / safe-haven demand), bearish (supply, inflation, hawkish Fed), or mixed
 - Any signals about auction demand, foreign buying, or fund flows
 - Any hedging demand signal: equity selloffs, flight-to-quality flows into Treasuries

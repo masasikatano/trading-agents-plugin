@@ -1,0 +1,18 @@
+{
+  "$schema": "https://muse.ai/code/settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(uv run --project * python scripts/fetch_market_data.py *)",
+      "Bash(uv run --project * python scripts/fetch_jp_market_data.py *)",
+      "Bash(uv run --project * python scripts/fetch_bond_etf_data.py *)",
+      "Bash(uv run --project * python scripts/fetch_backtest_prices.py *)",
+      "Bash(ls *)",
+      "Read(reports/**)",
+      "Write(reports/**)",
+      "Write(backtests/**)"
+    ]
+  },
+  "env": {
+    "ANALYST_ENGINE": "Claude"
+  }
+}

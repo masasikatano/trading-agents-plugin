@@ -44,7 +44,8 @@ Write a sentiment report (150-200 words) covering:
 - Top 3 most impactful headlines and their market implications
 - Overall sentiment: positive, negative, or mixed
 - Any sector tailwinds/headwinds visible in the news
-- Any earnings, guidance, or analyst signals
+- Earnings calendar (earnings_next) and recent analyst actions (analyst_actions, up to 5): cite firm, date, and grade change; if both are empty, state "no earnings/analyst-action material in feed" explicitly instead of omitting the topic
+- If any data block is missing or empty, state what is missing in one line starting with "Gap:"
 
 End with exactly: SENTIMENT SIGNAL: POSITIVE, NEGATIVE, or NEUTRAL
 ```
@@ -59,14 +60,15 @@ uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetc
 ```
 
 Write a fundamentals report (200-250 words) covering:
-- Valuation: trailing P/E, forward P/E, PEG ratio (forward PE / earnings growth), P/B vs sector norms
+- Valuation: trailing P/E, forward P/E, PEG ratio (forward PE / earnings growth), P/B vs sector_pb_median (cite the median and peers; if null, state "sector norm unavailable" instead of a general claim)
 - Growth: revenue growth, earnings growth trajectory
 - Quality: gross/operating margins, ROE, free cash flow
 - Balance sheet: total debt, total cash, D/E ratio (totalDebt / (totalDebt + stockholders equity)), current ratio
 - Risk metrics: beta, short ratio
-- Short interest: shares short, short % of float, days to cover (shortRatio), and the month-over-month change in shares short — always cite dateShortInterest and treat stale readings as lagging, not current
-- Quarterly financials: cite 1-2 key line items from quarterly_income_stmt and quarterly_balance_sheet (e.g. quarterly revenue, net income, total assets)
-- Analyst consensus: mean recommendation (1=Strong Buy, 5=Sell), price target vs current price
+- Short interest: shares short, short % of float, days to cover (shortRatio), and the month-over-month change in shares short — always cite dateShortInterest plus staleness_days; when stale is true, label the reading lagging, not current
+- Quarterly financials: cite quarterly_highlights (revenue, net income, diluted EPS, total assets); fall back to raw statements only if a highlight is null
+- Analyst consensus: mean recommendation (1=Strong Buy, 5=Sell), targetMeanPrice vs current_price using target_vs_current_pct (do not recompute)
+- If any data block is null or missing, state what is missing in one line starting with "Gap:"
 
 End with exactly: FUNDAMENTAL SIGNAL: STRONG, FAIR, or WEAK
 ```
@@ -81,6 +83,7 @@ uv run --project ${CLAUDE_PLUGIN_ROOT} python ${CLAUDE_PLUGIN_ROOT}/scripts/fetc
 ```
 
 Write a macro context report (100-150 words) covering:
+- Numeric snapshot: cite one line per macro_prices entry (^GSPC, ^TNX, GC=F, CL=F) with last value, date, and change_pct; mark any missing symbol as unavailable
 - Key macro themes visible in S&P 500, Treasury yield, oil, and gold news
 - Any geopolitical, monetary policy, or economic signals that could affect equities
 - Overall macro environment: risk-on, risk-off, or neutral
@@ -413,6 +416,8 @@ reports/${TODAY}_${TICKER}_${ENGINE}.md
 ```
 
 (relative to the project root, e.g. `reports/20261024_NVDA_Kimi.md`). Use the Write
-tool. Include a note in the report if any data source was unavailable and a fallback
+tool. Start the report with a header block listing Data sources used and a Gaps line
+collecting every "Gap:" line from Phase 1 (write "Gaps: none" when there are none).
+Include a note in the report if any data source was unavailable and a fallback
 was used. Then tell the user the saved file path.
 

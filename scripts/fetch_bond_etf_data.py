@@ -40,17 +40,60 @@ load_dotenv()
 FRED_API_KEY = os.getenv("FRED_API_KEY", "").strip()
 FRED_BASE = "https://api.stlouisfed.org/fred/series/observations"
 
-# Effective-duration fallback (years) when yfinance does not provide one.
-DURATION_FALLBACK_YEARS = {
-    "EDV": 24.4,
-    "TLT": 16.6,
-    "SPTL": 9.4,
+# Static issuer facts for tickers yfinance does not cover well (esp. TSE issues).
+# Values are approximate — verify against the issuer factsheet before sizing.
+# expense_ratio is in percent (e.g. 0.12 means 0.12%).
+ETF_STATIC_FACTS = {
+    "EDV": {"duration_years": 24.4, "expense_ratio": 0.06,
+            "factsheet": "https://www.vanguard.com EDV factsheet"},
+    "TLT": {"duration_years": 16.6, "expense_ratio": 0.15,
+            "factsheet": "https://www.ishares.com TLT factsheet"},
+    "SPTL": {"duration_years": 9.4, "expense_ratio": 0.06,
+             "factsheet": "SSGA SPTL factsheet"},
+    # 237A tracks the FTSE US Treasury STRIPS Principal 25+ Years Index
+    # (zero-coupon STRIPS, longer than EDV).
+    "237A": {"duration_years": 27.5, "expense_ratio": 0.12,
+             "factsheet": "BlackRock Japan 237A factsheet"},
+    # 2255 tracks a 20+ Year US Treasury index (TLT-like).
+    "2255": {"duration_years": 16.0, "expense_ratio": 0.15,
+             "factsheet": "BlackRock Japan 2255 factsheet"},
 }
+
+# Back-compat alias (duration-only view of ETF_STATIC_FACTS).
+DURATION_FALLBACK_YEARS = {
+    k: v["duration_years"] for k, v in ETF_STATIC_FACTS.items()
+}
+
+# SBI/東証で買える米国債ETFの対応表: Bare ticker -> yfinance ticker.
+# US-listed tickers pass through unchanged.
+JP_TSE_TICKER_MAP = {
+    "237A": "237A.T",  # iシェアーズ 米国債25年超ロングデュレーション ETF
+    "2255": "2255.T",  # iシェアーズ 米国債20年超 ETF
+}
+
+
+def resolve_ticker(ticker: str) -> str:
+    """Map a user-supplied ticker to the yfinance symbol.
+
+    Accepts "237A" or "237A.T" (likewise 2255); US tickers pass through.
+    """
+    t = (ticker or "").strip().upper()
+    if t in JP_TSE_TICKER_MAP:
+        return JP_TSE_TICKER_MAP[t]
+    return t
+
+
+def display_ticker(ticker: str) -> str:
+    """Bare ticker for reports (strip the .T suffix, e.g. 237A.T -> 237A)."""
+    t = (ticker or "").strip().upper()
+    return t[:-2] if t.endswith(".T") else t
 
 NEWS_KEYWORDS = [
     "treasury", "yield", "yields", "bond", "bonds", "fed", "fomc",
     "federal reserve", "rate", "rates", "cpi", "inflation", "auction",
-    "tlt", "edv", "sptl",
+    "tlt", "edv", "sptl", "237a", "2255",
+    # Japanese keywords for TSE-listed issues (SBI/東証の記事対策)
+    "米国債", "長期金利", "入札", "日銀", "為替",
 ]
 
 
@@ -227,10 +270,13 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
     except Exception:
         funds_data = {}
 
+    bare = display_ticker(ticker)
+    static = ETF_STATIC_FACTS.get(bare, {})
+
     duration = _funds_duration(info, funds_data)
     fallback_used = False
     if duration is None:
-        duration = DURATION_FALLBACK_YEARS.get(ticker.upper())
+        duration = static.get("duration_years")
         fallback_used = duration is not None
 
     # NAV / premium-discount
@@ -246,6 +292,12 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
     keys = ["longName", "category", "fundFamily", "quoteType", "beta3Year",
             "trailingPE"]
     meta = {k: info.get(k) for k in keys}
+    # TSE-listed ETFs carry no Morningstar category in yfinance; label by venue
+    # instead of leaving a bare null.
+    if not meta.get("category") and bare in JP_TSE_TICKER_MAP:
+        meta["category"] = "US Treasury long-duration (TSE, JPY)"
+        meta["category_source"] = "venue_label"
+    meta["currency"] = info.get("currency")
     # yfinance's raw "yield" field is unreliable for bond ETFs; the computed
     # TTM dividend yield below is the authoritative figure.
     meta["yield_raw_yfinance_unreliable"] = info.get("yield")
@@ -277,26 +329,45 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
             "Effective duration from fallback table; verify against issuer factsheet."
             if fallback_used else None
         ),
+        "venue": (
+            "TSE (JPY-denominated, unhedged US-rate exposure; "
+            "price also moves with USD/JPY). SBI証券で購入可。"
+            if display_ticker(ticker) in JP_TSE_TICKER_MAP else None
+        ),
     }
 
     # AUM: yfinance reports totalAssets on funds; fall back to marketCap.
-    for v in (info.get("totalAssets"), info.get("marketCap")):
+    # Annotate the currency so JPY-denominated TSE issues are not misread.
+    aum_source = None
+    for key in ("totalAssets", "marketCap"):
+        v = info.get(key)
         try:
             if v is not None:
                 result["aum"] = safe(float(v) / 1e9)
+                aum_source = key
                 break
         except (TypeError, ValueError):
             continue
-    for v in (info.get("annualReportExpenseRatio"), info.get("netExpenseRatio")):
+    result["aum_currency"] = info.get("currency")
+    result["aum_source"] = aum_source
+    expense_source = None
+    for key in ("annualReportExpenseRatio", "netExpenseRatio"):
+        v = info.get(key)
         try:
             if v is not None:
                 f = float(v)
                 # yfinance reports ETF expense ratios already in percent
                 # (e.g. 0.15 for TLT); only rescale if it looks like a fraction.
                 result["expense_ratio"] = safe(f / 100 if f > 5 else f)
+                expense_source = f"yfinance:{key}"
                 break
         except (TypeError, ValueError):
             continue
+    if result["expense_ratio"] is None and static.get("expense_ratio") is not None:
+        result["expense_ratio"] = static["expense_ratio"]
+        expense_source = "static_facts"
+    result["expense_source"] = expense_source
+    result["factsheet"] = static.get("factsheet")
 
     ttm = (result["dividends"] or {}).get("trailing_12m_total")
     if ttm is not None and price_current:
@@ -336,6 +407,7 @@ FRED_SERIES = {
     "DGS30": "30Y Treasury",
     "T10Y2Y": "2s10s Curve",
     "DFII10": "10Y TIPS (real yield)",
+    "DEXJPUS": "USD/JPY",
 }
 
 
@@ -508,11 +580,20 @@ def fetch_news(ticker: str, as_of: date) -> dict:
             relevant.append(i)
     relevant = relevant[:15]
 
+    bare = display_ticker(ticker)
+    direct = [i for i in relevant
+              if bare.lower() in f"{i.get('title', '')} {i.get('summary', '')}".lower()]
     result = {
         "ticker": ticker,
         "as_of": as_of.isoformat(),
         "news_count": len(relevant),
         "raw_ticker_news_count": len(raw),
+        "direct_coverage_count": len(direct),
+        "direct_coverage": bool(direct),
+        "coverage_note": (
+            "Direct ticker headlines found." if direct
+            else "No direct ticker headlines; sentiment uses related Treasury headlines only."
+        ),
         "items": relevant,
     }
     result["signal"] = _news_signal(relevant)
@@ -575,8 +656,9 @@ def main():
         "rates": fetch_rates,
     }
 
+    yf_ticker = resolve_ticker(args.ticker)
     try:
-        result = fetchers[args.type](args.ticker, as_of)
+        result = fetchers[args.type](yf_ticker, as_of)
     except Exception as e:
         result = {"error": str(e), "ticker": args.ticker, "type": args.type}
 
