@@ -390,3 +390,6 @@ VERDICT: [2〜3 文 — なぜ強気または弱気が勝ったか、3 つのリ
 ```
 
 PM の完全な判断をユーザーに表示してください。
+
+## Appendix: short_positioning (fundamentals.short_positioning, if available)
+- J-Quants short_sale_report + margin_interest (CalcDate grouped) + yfinance_short; `no_records` or nulls mean unavailable on current plan — analyze on available indicators only.

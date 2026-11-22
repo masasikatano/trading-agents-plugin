@@ -414,3 +414,6 @@ reports/${TODAY}_${TICKER}_${ENGINE}.md
 (relative to the project root, e.g. `reports/20261024_NVDA_Kimi.md`). Use the Write
 tool. Include a note in the report if any data source was unavailable and a fallback
 was used. Then tell the user the saved file path.
+
+## Appendix: short_interest (fundamentals.short_interest, yfinance info-derived)
+- Use `short_ratio_days_to_cover`, `short_percent_of_float`, `shares_short` when present; nulls mean unavailable — analyze on available indicators only.

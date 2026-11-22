@@ -114,6 +114,34 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
     data["quarterly_balance_sheet"] = statement_to_dict(tk.quarterly_balance_sheet)
     data["quarterly_cashflow"] = statement_to_dict(tk.quarterly_cashflow)
 
+    # Short-interest block derived from the already-fetched tk.info (no new network).
+    def _epoch_to_date(v):
+        try:
+            if v is None:
+                return None
+            from datetime import datetime, timezone
+            return datetime.fromtimestamp(float(v), tz=timezone.utc).date().isoformat()
+        except Exception:
+            return None
+
+    spf = info.get("shortPercentOfFloat")
+    spso = info.get("sharesPercentSharesOut")
+    data["short_interest"] = {
+        "short_ratio_days_to_cover": safe(info.get("shortRatio")),
+        "short_percent_of_float": safe(spf * 100) if isinstance(spf, (int, float)) else None,
+        "short_percent_of_shares_outstanding": safe(spso * 100) if isinstance(spso, (int, float)) else None,
+        "shares_short": info.get("sharesShort"),
+        "shares_short_prior_month": info.get("sharesShortPriorMonth"),
+        "float_shares": info.get("floatShares"),
+        "shares_outstanding": info.get("sharesOutstanding"),
+        "short_interest_date": _epoch_to_date(info.get("dateShortInterest")),
+        "short_interest_prior_date": _epoch_to_date(info.get("sharesShortPreviousMonthDate")),
+        "no_records": all(info.get(k) is None for k in (
+            "shortRatio", "shortPercentOfFloat", "sharesPercentSharesOut",
+            "sharesShort", "dateShortInterest")),
+        "note": "short_interest derived from yfinance info; nulls mean unavailable",
+    }
+
     return data
 
 

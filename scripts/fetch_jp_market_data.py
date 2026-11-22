@@ -331,11 +331,89 @@ def fetch_fundamentals(ticker: str, as_of: date) -> dict:
         if isinstance(v, float):
             yf_data[k] = safe(v)
 
+    sp = _fetch_short_positioning(code)
+
     return {
         "ticker": ticker,
         "as_of": as_of.isoformat(),
         "jquants_summary": jq_summary,
         "yfinance": yf_data,
+        "short_positioning": sp,
+    }
+
+
+def _fetch_short_positioning(code: str) -> dict:
+    """Short-sale-report + margin-interest (max 2 J-Quants calls), per-call isolation.
+
+    Ratios are multiplied by 100 BEFORE safe() rounding. Groups by CalcDate.
+    Unavailable endpoints degrade to no_records with a notes line.
+    """
+    notes: list[str] = []
+    short_sales: list[dict] = []
+    try:
+        payload = _jquants_get("/markets/short_selling", {"code": code})
+        recs = payload.get("short_selling") or payload.get("data") or []
+        grouped: dict[str, dict] = {}
+        for r in recs:
+            d = str(r.get("CalcDate") or r.get("Date") or "")
+            g = grouped.setdefault(d, {"date": d, "records": 0,
+                                       "short_volume": 0, "short_value": 0.0})
+            g["records"] += 1
+            try:
+                g["short_volume"] += int(r.get("ShortVolume") or 0)
+            except Exception:
+                pass
+            try:
+                g["short_value"] += float(r.get("ShortValue") or 0)
+            except Exception:
+                pass
+        short_sales = sorted(grouped.values(), key=lambda g: g["date"], reverse=True)[:5]
+    except Exception as exc:
+        notes.append(f"short_sale_report unavailable: {type(exc).__name__}")
+
+    margin: list[dict] = []
+    try:
+        payload = _jquants_get("/markets/margin_interest", {"code": code})
+        recs = payload.get("margin_interest") or payload.get("data") or []
+        grouped2: dict[str, dict] = {}
+        for r in recs:
+            d = str(r.get("CalcDate") or r.get("Date") or "")
+            g = grouped2.setdefault(d, {"date": d})
+            for k in ("ShortMargin", "LongMargin", "ShortLoan", "Ratio"):
+                if r.get(k) is not None:
+                    g[k] = r.get(k)
+            if g.get("Ratio") is not None:
+                try:
+                    g["short_ratio_pct"] = safe(float(g["Ratio"]) * 100)
+                except Exception:
+                    pass
+        margin = sorted(grouped2.values(), key=lambda g: g["date"], reverse=True)[:5]
+    except Exception as exc:
+        notes.append(f"margin_interest unavailable: {type(exc).__name__}")
+
+    yf_short: dict = {}
+    try:
+        import yfinance as _yf
+        _info = _yf.Ticker(f"{code}.T").info or {}
+        for k in ("shortRatio", "shortPercentOfFloat", "sharesShort",
+                  "floatShares", "sharesOutstanding"):
+            yf_short[k] = _info.get(k)
+        if isinstance(yf_short.get("shortPercentOfFloat"), (int, float)):
+            yf_short["short_percent_of_float_pct"] = safe(
+                float(yf_short["shortPercentOfFloat"]) * 100)
+    except Exception as exc:
+        notes.append(f"yfinance_short unavailable: {type(exc).__name__}")
+
+    no_records = not short_sales and not margin
+    if no_records and not notes:
+        notes.append("no short-positioning records on current plan")
+    notes.append("short_positioning may be unavailable on free plan; analyze on available indicators only")
+    return {
+        "short_sale_report": short_sales,
+        "margin_interest": margin,
+        "yfinance_short": yf_short,
+        "no_records": no_records,
+        "notes": "; ".join(notes),
     }
 
 
@@ -653,6 +731,12 @@ def _print_fundamentals_summary(result: dict):
     print(f"  P/E     : {_fmt(yf.get('trailingPE'))}", file=sys.stderr)
     print(f"  P/B     : {_fmt(yf.get('priceToBook'))}", file=sys.stderr)
     print(f"  配当利回: {_fmt(yf.get('dividendYield'))} %", file=sys.stderr)
+    sp = result.get("short_positioning", {})
+    if sp.get("no_records"):
+        print(f"  空売り残: なし ({sp.get('notes', '')[:80]})", file=sys.stderr)
+    else:
+        print(f"  空売り残: {len(sp.get('short_sale_report', []))}日分/"
+              f"信用残{len(sp.get('margin_interest', []))}日分", file=sys.stderr)
 
 
 def _print_news_summary(result: dict):
